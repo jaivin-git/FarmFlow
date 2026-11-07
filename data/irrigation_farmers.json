@@ -15,7 +15,7 @@
     "epochs_served": 7,
     "estimated_daily_water_litres": 1264.642632,
     "estimated_water_until_harvest_litres": 118958.23722536472,
-    "password_hash": "$2a$10$GI3gHTITRzTJoL/KICOA6.SaFeYsIy/TYcHkj1YQIx6BEyzWVXZyK",
+    "password_hash": "$2a$10$z0JwgWIUsRgTrGy2Uu1PoeXdO8UdUXBNBQrLkNQFFMm7Bo6hCYp2S",
     "plots": [
       {
         "id": "PLOT-JAI101-1",
@@ -45,7 +45,7 @@
     "epochs_served": 5,
     "estimated_daily_water_litres": 499.90579335529424,
     "estimated_water_until_harvest_litres": 80484.83273020235,
-    "password_hash": "$2a$10$k435XtlAiQUeRtdsXR20iua7jbRyj14wOfZFq.3D/k3A4Pm8Ld8dG",
+    "password_hash": "$2a$10$z0JwgWIUsRgTrGy2Uu1PoeXdO8UdUXBNBQrLkNQFFMm7Bo6hCYp2S",
     "plots": [
       {
         "id": "PLOT-JAI102-1",

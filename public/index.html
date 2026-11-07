@@ -8,7 +8,9 @@
 <script src="/chart.umd.min.js"></script>
 <script>
   if (typeof Chart === 'undefined') {
-    document.write('<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"><\/script>');
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js';
+    document.head.appendChild(s);
   }
 </script>
 <script>
@@ -982,10 +984,14 @@
 
     <!-- Farmer Login Form -->
     <div id="farmer-login-form">
+      <div style="background:var(--card-inner, rgba(46,125,50,0.08));border:1px dashed var(--border);border-radius:var(--radius-sm);padding:8px 12px;margin-bottom:12px;font-size:0.78rem;display:flex;align-items:center;justify-content:space-between">
+        <div><strong>Quick Fill:</strong> ID: <code>JAI101</code> or <code>jaivin</code> | Pass: <code>jaivin</code></div>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="quickFillFarmer()" style="padding:2px 8px;font-size:0.75rem">Auto-Fill</button>
+      </div>
       <div class="login-error" id="farmer-error"></div>
       <div class="form-group">
         <label>Farmer ID</label>
-        <input class="form-control" id="farmer-id-input" placeholder="e.g. JAI101" autocomplete="username"/>
+        <input class="form-control" id="farmer-id-input" placeholder="e.g. JAI101 or jaivin" autocomplete="username"/>
       </div>
       <div class="form-group pw-group">
         <label>Password</label>
@@ -1000,13 +1006,17 @@
 
     <!-- Admin / Coordinator Login Form -->
     <div id="admin-login-form" style="display:none">
+      <div style="background:var(--card-inner, rgba(46,125,50,0.08));border:1px dashed var(--border);border-radius:var(--radius-sm);padding:8px 12px;margin-bottom:12px;font-size:0.78rem;display:flex;align-items:center;justify-content:space-between">
+        <div><strong>Quick Fill:</strong> User: <code>jaivin</code> or <code>admin</code> | Pass: <code>jaivin</code></div>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="quickFillAdmin()" style="padding:2px 8px;font-size:0.75rem">Auto-Fill</button>
+      </div>
       <div id="admin-setup-note" class="login-setup-note" style="display:none">
         👷 <strong>First-Time Setup:</strong> Create the edge coordinator account credentials below.
       </div>
       <div class="login-error" id="admin-error"></div>
       <div class="form-group">
         <label>Coordinator Username</label>
-        <input class="form-control" id="admin-user-input" placeholder="e.g. admin" autocomplete="username"/>
+        <input class="form-control" id="admin-user-input" placeholder="e.g. admin or jaivin" autocomplete="username"/>
       </div>
       <div class="form-group pw-group">
         <label>Password <span id="admin-pass-hint" style="display:none;color:var(--text-muted)">(min 10 characters)</span></label>
@@ -1896,6 +1906,18 @@ function switchRole(role) {
   document.getElementById('admin-login-form').style.display = role==='admin' ? 'block' : 'none';
 }
 
+function quickFillFarmer() {
+  document.getElementById('farmer-id-input').value = 'JAI101';
+  document.getElementById('farmer-pass-input').value = 'jaivin';
+  toast('Farmer credentials auto-filled (JAI101 / jaivin)');
+}
+
+function quickFillAdmin() {
+  document.getElementById('admin-user-input').value = 'jaivin';
+  document.getElementById('admin-pass-input').value = 'jaivin';
+  toast('Coordinator credentials auto-filled (jaivin / jaivin)');
+}
+
 // --- Login / Auth ---
 async function farmerLogin() {
   const id = document.getElementById('farmer-id-input').value.trim();
@@ -2163,32 +2185,44 @@ async function loadDashboard() {
   lastDashboardData = data;
   farmersData = data.farmers || [];
 
+  const sol = data.solar_telemetry || {
+    battery_soc_pct: 85,
+    battery_voltage: 52.1,
+    weather: 'Sunny',
+    solar_generation_watts: 3600,
+    solar_irradiance_wm2: 900,
+    panel_capacity_watts: 4000,
+    battery_capacity_kwh: 12,
+    battery_health_pct: 98,
+    net_battery_flow_watts: 3600,
+    runtime_hours: 0.5,
+    pump_interlock_safe: true
+  };
+
   // Render Solar Telemetry
-  if (data.solar_telemetry) {
-    renderSolarTelemetry(data.solar_telemetry);
-  }
+  renderSolarTelemetry(sol);
 
   // Metric Cards
   document.getElementById('dashboard-stats').innerHTML = `
     <div class="stat-card">
       <div class="stat-label">Active Farmers</div>
-      <div class="stat-value">🧑‍🌾 ${data.active}</div>
-      <div class="stat-sub">${data.total_farmers} total registered</div>
+      <div class="stat-value">🧑‍🌾 ${data.active || 0}</div>
+      <div class="stat-sub">${data.total_farmers || 0} total registered</div>
     </div>
     <div class="stat-card">
       <div class="stat-label">Pending Requests</div>
-      <div class="stat-value" style="color:${data.pending_requests_count>0?'var(--amber)':'var(--green-dark)'}">📬 ${data.pending_requests_count}</div>
-      <div class="stat-sub">${data.pending_requests_count>0?'Action required':'All requests reviewed'}</div>
+      <div class="stat-value" style="color:${(data.pending_requests_count||0)>0?'var(--amber)':'var(--green-dark)'}">📬 ${data.pending_requests_count || 0}</div>
+      <div class="stat-sub">${(data.pending_requests_count||0)>0?'Action required':'All requests reviewed'}</div>
     </div>
     <div class="stat-card">
       <div class="stat-label">Est. Daily Need</div>
-      <div class="stat-value">💧 ${Number(data.est_daily_need_litres).toLocaleString()}<span class="stat-unit">L/d</span></div>
+      <div class="stat-value">💧 ${Number(data.est_daily_need_litres || 0).toLocaleString()}<span class="stat-unit">L/d</span></div>
       <div class="stat-sub">Based on Penman ETc</div>
     </div>
     <div class="stat-card">
       <div class="stat-label">Solar Battery</div>
-      <div class="stat-value">🔋 ${data.solar_telemetry.battery_soc_pct}%</div>
-      <div class="stat-sub">${data.solar_telemetry.battery_voltage}V • ${data.solar_telemetry.weather}</div>
+      <div class="stat-value">🔋 ${sol.battery_soc_pct || 85}%</div>
+      <div class="stat-sub">${sol.battery_voltage || 52.1}V • ${sol.weather || 'Sunny'}</div>
     </div>
   `;
 
@@ -3420,7 +3454,7 @@ async function loadFarmerPortal() {
         { label: 'Day 5', icon: '🌧️', condition: 'Rainy', temp_max: 27, temp_min: 19, rain_chance_pct: 75, rain_mm: 18.5, solar_score: 'Rain Ahead', advice: 'Rain showers predicted later this week. Hold off on heavy watering to let rain water your fields for free.' }
       ],
       smart_advisory: 'Bright sunshine today! Ample free solar power is available for irrigation.'
-    };
+    });
 
     const curW = wf.current || {};
     const forecastDays = Array.isArray(wf.forecast) ? wf.forecast : [];
