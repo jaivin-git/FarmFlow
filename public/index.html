@@ -11,6 +11,18 @@
     document.write('<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"><\/script>');
   }
 </script>
+<script>
+  // Apply saved or system theme immediately to prevent FOUC (flash of unstyled content)
+  (function() {
+    const saved = localStorage.getItem('farmflow_theme');
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (saved === 'dark' || (!saved && prefersDark)) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    } else {
+      document.documentElement.setAttribute('data-theme', 'light');
+    }
+  })();
+</script>
 <style>
   /* ========== RESET & THEME ========== */
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -27,7 +39,27 @@
     --radius:14px;--radius-sm:8px;
     --font:'Segoe UI',-apple-system,BlinkMacSystemFont,Roboto,Helvetica,sans-serif;
   }
-  body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+
+  /* Dark Theme Palette (Lush Emerald / Deep Obsidian) */
+  [data-theme="dark"] {
+    --bg:#0b140e;
+    --card:#132218;
+    --card-inner:#192d20;
+    --border:#233f2c;
+    --border-subtle:#193122;
+    --text:#e2ece4;
+    --text-muted:#95ad9b;
+    --green-dark:#86efac;
+    --green-soft:rgba(34,197,94,0.18);
+    --amber-soft:rgba(245,158,11,0.18);
+    --sky-soft:rgba(56,189,248,0.18);
+    --red-soft:rgba(239,68,68,0.18);
+    --purple-soft:rgba(168,85,247,0.18);
+    --shadow:0 6px 24px rgba(0,0,0,0.45);
+    --shadow-hover:0 10px 36px rgba(0,0,0,0.65);
+  }
+
+  body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;transition:background-color .25s ease, color .25s ease}
 
   /* ========== PAGES / ROUTER ========== */
   .page{display:none;min-height:100vh;animation:fadeIn .25s ease}
@@ -712,6 +744,170 @@
     .sidebar{display:none}
     .main{padding:16px}
   }
+
+  /* Theme Toggle Button */
+  .btn-theme-toggle{
+    background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.28);
+    color:#fff;padding:6px 14px;border-radius:20px;cursor:pointer;font-size:.84rem;
+    font-weight:700;display:inline-flex;align-items:center;gap:6px;
+    backdrop-filter:blur(4px);transition:all .2s ease;
+  }
+  .btn-theme-toggle:hover{background:rgba(255,255,255,.28);transform:translateY(-1px)}
+
+  /* ==================== DARK MODE COMPONENT OVERRIDES ==================== */
+  [data-theme="dark"] .navbar {
+    background: linear-gradient(135deg, #051408 0%, #0d2813 50%, #153c1d 100%);
+    border-bottom: 1px solid #1e3d27;
+  }
+  [data-theme="dark"] .sidebar {
+    background: #08170c;
+    border-right: 1px solid #1a3221;
+  }
+  [data-theme="dark"] .sidebar-item:hover {
+    background: rgba(255,255,255,.06);
+  }
+  [data-theme="dark"] .sidebar-item.active {
+    background: linear-gradient(90deg, rgba(40,167,69,.22), transparent);
+    border-left-color: var(--green-light);
+  }
+  [data-theme="dark"] .table-wrap {
+    background: var(--card);
+    border-color: var(--border);
+  }
+  [data-theme="dark"] thead th {
+    background: #0d2814;
+    color: #e2ece4;
+    border-bottom: 2px solid #1e4526;
+  }
+  [data-theme="dark"] tbody tr:nth-child(even) {
+    background: #0f1c13;
+  }
+  [data-theme="dark"] tbody tr:hover {
+    background: #172d1f;
+  }
+  [data-theme="dark"] td {
+    border-top: 1px solid var(--border);
+    color: var(--text);
+  }
+  [data-theme="dark"] .form-control {
+    background: #101c13;
+    border-color: var(--border);
+    color: var(--text);
+  }
+  [data-theme="dark"] .form-control:focus {
+    border-color: var(--green-light);
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
+  }
+  [data-theme="dark"] select.form-control option {
+    background: #132218;
+    color: #e2ece4;
+  }
+  [data-theme="dark"] .btn-secondary {
+    background: #16281c;
+    color: #a7f3d0;
+    border-color: var(--border);
+  }
+  [data-theme="dark"] .btn-secondary:hover {
+    background: #1f3726;
+  }
+  [data-theme="dark"] .modal-box {
+    background: #132218;
+    border-color: var(--border);
+    color: var(--text);
+  }
+  [data-theme="dark"] .modal-title {
+    color: var(--green-dark);
+  }
+  [data-theme="dark"] .weather-forecast-card {
+    background: linear-gradient(135deg, #132218 0%, #0e1a12 100%);
+    border-color: var(--border);
+  }
+  [data-theme="dark"] .weather-fc-header {
+    border-bottom-color: var(--border);
+  }
+  [data-theme="dark"] .weather-current-panel {
+    background: linear-gradient(135deg, #152c1c 0%, #0d2636 100%);
+    border-color: #1e482b;
+  }
+  [data-theme="dark"] .weather-temp-badge {
+    color: #a7f3d0;
+  }
+  [data-theme="dark"] .weather-pill {
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(255,255,255,0.12);
+    color: var(--text);
+  }
+  [data-theme="dark"] .weather-advisory-banner {
+    background: rgba(245, 158, 11, 0.12);
+    border-left-color: var(--amber-light);
+    color: #fef3c7;
+  }
+  [data-theme="dark"] .fc-day-card {
+    background: #15261b;
+    border-color: var(--border);
+  }
+  [data-theme="dark"] .fc-day-card.today {
+    background: #163621;
+    border-color: #34d399;
+  }
+  [data-theme="dark"] .soil-gauge-container {
+    background: var(--card);
+    border-color: var(--border);
+  }
+  [data-theme="dark"] .progress-wrap {
+    background: #1e3626;
+  }
+  [data-theme="dark"] .crop-timeline::before {
+    background: #23412c;
+  }
+  [data-theme="dark"] .timeline-dot {
+    background: #1c3323;
+    border-color: #132218;
+    color: var(--text-muted);
+  }
+  [data-theme="dark"] .notif-drawer {
+    background: #132218;
+    border-color: var(--border);
+    color: var(--text);
+    box-shadow: 0 16px 48px rgba(0,0,0,.6);
+  }
+  [data-theme="dark"] .notif-header {
+    background: #0f1c13;
+    border-bottom-color: var(--border);
+  }
+  [data-theme="dark"] .notif-item {
+    border-bottom-color: #193121;
+  }
+  [data-theme="dark"] .notif-item:hover {
+    background: #193121;
+  }
+  [data-theme="dark"] .notif-item.unread {
+    background: #14351e;
+  }
+  [data-theme="dark"] .login-container {
+    background: #132218;
+    border: 1px solid var(--border);
+    box-shadow: 0 24px 70px rgba(0,0,0,.6);
+  }
+  [data-theme="dark"] .login-logo h1 {
+    color: #a7f3d0;
+  }
+  [data-theme="dark"] .role-tabs {
+    background: #182a1e;
+    border-color: var(--border);
+  }
+  [data-theme="dark"] .role-tab {
+    color: var(--text-muted);
+  }
+  [data-theme="dark"] .preset-card {
+    background: #15261b;
+    border-color: var(--border);
+  }
+  [data-theme="dark"] #slip-content {
+    background: #0d1711 !important;
+    color: #a7f3d0 !important;
+    border: 1px solid var(--border);
+  }
 </style>
 </head>
 <body>
@@ -722,6 +918,11 @@
 <!-- ==================== LOGIN PAGE ==================== -->
 <div class="page active" id="login-page">
   <div class="login-container">
+    <div style="display:flex;justify-content:flex-end;margin-bottom:6px">
+      <button class="btn-theme-toggle" onclick="toggleTheme()" id="theme-toggle-login" title="Switch Theme" style="background:rgba(0,0,0,0.06);border-color:var(--border);color:var(--text);font-size:0.78rem;padding:4px 11px">
+        <span class="theme-icon">🌙</span> <span class="theme-label">Dark</span>
+      </button>
+    </div>
     <div class="login-logo">
       <span class="plant">☀️🌾</span>
       <h1>FarmFlow</h1>
@@ -783,6 +984,11 @@
       <span class="tag">Edge Coordinator Hub</span>
     </div>
     <div class="navbar-right">
+      <!-- Dark / Light Theme Toggle -->
+      <button class="btn-theme-toggle" onclick="toggleTheme()" id="theme-toggle-admin" title="Toggle Dark/Light Mode">
+        <span class="theme-icon">🌙</span> <span class="theme-label">Dark</span>
+      </button>
+
       <!-- Notification Bell -->
       <button class="btn-notif" onclick="toggleNotifDrawer()" title="Notifications">
         🔔
@@ -1252,6 +1458,11 @@
       <span class="tag">Farmer Self-Service Portal</span>
     </div>
     <div class="navbar-right">
+      <!-- Dark / Light Theme Toggle -->
+      <button class="btn-theme-toggle" onclick="toggleTheme()" id="theme-toggle-farmer" title="Toggle Dark/Light Mode">
+        <span class="theme-icon">🌙</span> <span class="theme-label">Dark</span>
+      </button>
+
       <!-- Notification Bell -->
       <button class="btn-notif" onclick="toggleNotifDrawer()" title="Notifications">
         🔔
@@ -1450,6 +1661,58 @@ let farmersData = [];
 let configData = {};
 let lastIrrResult = null;
 let chartInstances = {};
+let lastDashboardData = null;
+let currentTheme = 'light';
+
+// ==================== THEME CONTROLLER (DARK / LIGHT MODE) ====================
+function initTheme() {
+  const saved = localStorage.getItem('farmflow_theme');
+  const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const theme = saved || (prefersDark ? 'dark' : 'light');
+  applyTheme(theme, false);
+}
+
+function isDarkMode() {
+  return document.documentElement.getAttribute('data-theme') === 'dark';
+}
+
+function applyTheme(theme, reRenderCharts = true) {
+  currentTheme = theme;
+  document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem('farmflow_theme', theme);
+
+  const isDark = (theme === 'dark');
+  const icon = isDark ? '☀️' : '🌙';
+  const label = isDark ? 'Light' : 'Dark';
+
+  ['theme-toggle-admin', 'theme-toggle-farmer', 'theme-toggle-login'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) {
+      const iconEl = btn.querySelector('.theme-icon');
+      const labelEl = btn.querySelector('.theme-label');
+      if (iconEl) iconEl.textContent = icon;
+      if (labelEl) labelEl.textContent = label;
+      btn.setAttribute('title', isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode');
+    }
+  });
+
+  // Re-render charts in admin mode with theme colors
+  if (reRenderCharts && lastDashboardData) {
+    if (document.getElementById('cropChart') || document.getElementById('crop-chart-box')) {
+      renderCropChart(lastDashboardData.crop_distribution || {});
+    }
+    if (document.getElementById('satisfactionChart') || document.getElementById('satisfaction-chart-box')) {
+      renderSatisfactionChart(lastDashboardData.recent_history || []);
+    }
+  }
+}
+
+function toggleTheme() {
+  const next = isDarkMode() ? 'light' : 'dark';
+  applyTheme(next, true);
+  playNotificationChime();
+  toast(`Switched to ${next === 'dark' ? '🌙 Dark Mode' : '☀️ Light Mode'}`);
+}
 
 // --- Web Audio Chime ---
 function playNotificationChime() {
@@ -1770,6 +2033,7 @@ async function setWeather(weatherName) {
 async function loadDashboard() {
   const data = await api('/api/dashboard');
   if (data.error) return;
+  lastDashboardData = data;
   farmersData = data.farmers || [];
 
   // Render Solar Telemetry
@@ -1882,7 +2146,7 @@ function renderCropChart(dist) {
             data,
             backgroundColor: colors.slice(0, labels.length),
             borderWidth: 2,
-            borderColor: '#ffffff'
+            borderColor: isDarkMode() ? '#132218' : '#ffffff'
           }]
         },
         options: {
@@ -1891,7 +2155,12 @@ function renderCropChart(dist) {
           plugins: {
             legend: {
               position: 'bottom',
-              labels: { boxWidth: 12, padding: 12, font: { family: 'Segoe UI', size: 11, weight: 600 } }
+              labels: {
+                boxWidth: 12,
+                padding: 12,
+                color: isDarkMode() ? '#e2ece4' : '#1c2d1c',
+                font: { family: 'Segoe UI', size: 11, weight: 600 }
+              }
             },
             tooltip: {
               callbacks: {
@@ -1938,7 +2207,7 @@ function renderSvgDonut(container, labels, data, colors, total) {
     `;
 
     legendHtml += `
-      <div style="display:inline-flex;align-items:center;gap:6px;background:#f6fbf6;border:1px solid #e2ebe2;padding:4px 10px;border-radius:14px;font-size:0.78rem">
+      <div style="display:inline-flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--border);padding:4px 10px;border-radius:14px;font-size:0.78rem;color:var(--text)">
         <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${color}"></span>
         <strong>${esc(l)}</strong>: <span>${val} (${Math.round(pct*100)}%)</span>
       </div>
@@ -2024,13 +2293,19 @@ function renderSatisfactionChart(history) {
             y: {
               min: 0,
               max: 100,
-              ticks: { callback: v => v + '%' },
-              grid: { color: 'rgba(0,0,0,0.06)' }
+              ticks: { color: isDarkMode() ? '#95ad9b' : '#5e755e', callback: v => v + '%' },
+              grid: { color: isDarkMode() ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }
             },
-            x: { grid: { display: false } }
+            x: {
+              ticks: { color: isDarkMode() ? '#95ad9b' : '#5e755e' },
+              grid: { display: false }
+            }
           },
           plugins: {
-            legend: { position: 'bottom', labels: { boxWidth: 12, padding: 12, font: { size: 11, weight: 600 } } }
+            legend: {
+              position: 'bottom',
+              labels: { color: isDarkMode() ? '#e2ece4' : '#1c2d1c', boxWidth: 12, padding: 12, font: { size: 11, weight: 600 } }
+            }
           }
         }
       });
@@ -2072,16 +2347,16 @@ function renderSvgBarChart(container, labels, satisfaction, fairness) {
 
   container.innerHTML = `
     <div style="display:flex;flex-direction:column;height:100%;justify-content:space-between;padding:10px 4px">
-      <div style="flex:1;display:flex;align-items:flex-end;position:relative;border-bottom:2px solid #cbd5e1;padding-bottom:2px">
-        <div style="position:absolute;bottom:${chartHeight/2}px;left:0;right:0;border-top:1px dashed #e2e8f0;pointer-events:none">
-          <span style="position:absolute;right:0;top:-12px;font-size:0.68rem;color:#94a3b8">50%</span>
+      <div style="flex:1;display:flex;align-items:flex-end;position:relative;border-bottom:2px solid var(--border);padding-bottom:2px">
+        <div style="position:absolute;bottom:${chartHeight/2}px;left:0;right:0;border-top:1px dashed var(--border);pointer-events:none">
+          <span style="position:absolute;right:0;top:-12px;font-size:0.68rem;color:var(--text-muted)">50%</span>
         </div>
-        <div style="position:absolute;bottom:${chartHeight}px;left:0;right:0;border-top:1px solid #f1f5f9;pointer-events:none">
-          <span style="position:absolute;right:0;top:-12px;font-size:0.68rem;color:#94a3b8">100%</span>
+        <div style="position:absolute;bottom:${chartHeight}px;left:0;right:0;border-top:1px solid var(--border);pointer-events:none">
+          <span style="position:absolute;right:0;top:-12px;font-size:0.68rem;color:var(--text-muted)">100%</span>
         </div>
         ${barsHtml}
       </div>
-      <div style="display:flex;justify-content:center;gap:16px;margin-top:12px;font-size:0.78rem">
+      <div style="display:flex;justify-content:center;gap:16px;margin-top:12px;font-size:0.78rem;color:var(--text)">
         <div style="display:flex;align-items:center;gap:6px">
           <span style="width:12px;height:12px;background:#28a745;border-radius:3px;display:inline-block"></span>
           <span style="font-weight:600">Avg Satisfaction (%)</span>
@@ -3555,6 +3830,7 @@ document.addEventListener('keydown', e => {
 
 // ==================== BOOTSTRAP ====================
 async function init() {
+  initTheme();
   const res = await api('/api/auth/status');
   if (res.adminSetupRequired) {
     switchRole('admin');

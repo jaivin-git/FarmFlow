@@ -34,6 +34,12 @@ FarmFlow bridges the gap between field-level agricultural physics, solar energy 
 * **Farmer Management & Security**: Role-based access control, bcrypt password protection, status toggles, and downloadable official irrigation delivery slips.
 * **Audit Trail**: Real-time logging of all coordinator actions, weather changes, and distribution cycles.
 
+### 5. 🌙 Dark & Light Adaptive Theming
+* **Dual-Portal Support**: Seamless one-click dark/light theme toggle in both Farmer Self-Service and Edge Coordinator portals, as well as the login gateway.
+* **Deep Emerald Obsidian Palette**: Tailored for night-time farming operations and low-light control room monitoring.
+* **Persistent Preference**: Automatically saves theme choice to `localStorage` while honoring system `prefers-color-scheme` settings.
+* **Real-time Chart Re-rendering**: Chart.js doughnut/bar analytics and native SVG telemetry adapt text, axes, and legends instantaneously on theme toggle without refreshing.
+
 ---
 
 ## 🏗️ Architecture & Technology Stack
