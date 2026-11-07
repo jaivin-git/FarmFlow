@@ -1,0 +1,38 @@
+[
+  {
+    "id": "JAI101",
+    "name": "jaivin",
+    "status": "active",
+    "crop": "Rice (Paddy)",
+    "area_acres": 0.05,
+    "planting_date": "2026-10-07",
+    "current_date": "2026-11-06",
+    "crop_age_days": 30,
+    "crop_coefficient": 1.0625,
+    "last_soil_moisture": 75,
+    "total_allocated_litres": 4167.008745854536,
+    "total_delivered_litres": 4109.368093542654,
+    "epochs_served": 7,
+    "estimated_daily_water_litres": 1264.642632,
+    "estimated_water_until_harvest_litres": 118958.23722536472,
+    "password_hash": "$2a$10$GI3gHTITRzTJoL/KICOA6.SaFeYsIy/TYcHkj1YQIx6BEyzWVXZyK"
+  },
+  {
+    "id": "JAI102",
+    "name": "jaivin",
+    "status": "active",
+    "crop": "Pearl millet (Cumbu)",
+    "area_acres": 0.07,
+    "planting_date": "2026-10-27",
+    "current_date": "2026-11-06",
+    "crop_age_days": 10,
+    "crop_coefficient": 0.3,
+    "last_soil_moisture": 71.02,
+    "total_allocated_litres": 1102.991254145464,
+    "total_delivered_litres": 1110.7481410899752,
+    "epochs_served": 5,
+    "estimated_daily_water_litres": 499.90579335529424,
+    "estimated_water_until_harvest_litres": 80484.83273020235,
+    "password_hash": "$2a$10$k435XtlAiQUeRtdsXR20iua7jbRyj14wOfZFq.3D/k3A4Pm8Ld8dG"
+  }
+]

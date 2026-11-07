@@ -1,0 +1,12 @@
+{
+  "pipe_capacity_lpm": 10,
+  "valve_flow_lpm": 5,
+  "operating_window_minutes": 240,
+  "soil_sensor_noise": 2,
+  "flow_sensor_noise": 0.02,
+  "target_moisture": 70,
+  "reference_et0_mm_day": 4.5,
+  "effective_rainfall_mm_day": 0,
+  "irrigation_efficiency": 0.85,
+  "random_seed": 42
+}

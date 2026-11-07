@@ -1,0 +1,46 @@
+[
+  {
+    "id": "NOTIF-1794050353243-275",
+    "recipientRole": "farmer",
+    "recipientId": "JAI101",
+    "title": "💧 Water Delivery Completed!",
+    "message": "Your water allocation of 5.0 L has been successfully delivered to your plot. Root zone soil moisture is now replenished to optimal.",
+    "type": "success",
+    "link": null,
+    "read": true,
+    "timestamp": "2026-11-07T11:19:13.243Z"
+  },
+  {
+    "id": "NOTIF-1794035125361-609",
+    "recipientRole": "admin",
+    "recipientId": null,
+    "title": "🚨 New Water Request: jaivin (JAI101)",
+    "message": "jaivin requested 5 L for Rice (Paddy) [Urgency: emergency]. Soil Moisture: 26.77%.",
+    "type": "emergency",
+    "link": "#requests",
+    "read": true,
+    "timestamp": "2026-11-07T07:05:25.362Z"
+  },
+  {
+    "id": "NOTIF-1794033107373-540",
+    "recipientRole": "farmer",
+    "recipientId": "JAI101",
+    "title": "💧 Irrigation Completed!",
+    "message": "Your water allocation of 1265.0 L has been delivered via Nash Bargaining.",
+    "type": "success",
+    "link": null,
+    "read": true,
+    "timestamp": "2026-11-07T06:31:47.373Z"
+  },
+  {
+    "id": "NOTIF-1794033043341-14",
+    "recipientRole": "admin",
+    "recipientId": null,
+    "title": "🚨 New Water Request: jaivin (JAI101)",
+    "message": "jaivin requested 1265 L for Rice (Paddy) [Urgency: emergency]. Soil Moisture: 26.77%.",
+    "type": "emergency",
+    "link": "#requests",
+    "read": true,
+    "timestamp": "2026-11-07T06:30:43.341Z"
+  }
+]

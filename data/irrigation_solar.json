@@ -1,0 +1,15 @@
+{
+  "battery_capacity_kwh": 12,
+  "battery_soc_pct": 82,
+  "battery_voltage": 51.9,
+  "panel_capacity_watts": 4000,
+  "weather": "Partly Cloudy",
+  "solar_irradiance_wm2": 560,
+  "solar_generation_watts": 2400,
+  "pump_power_draw_watts": 0,
+  "battery_health_pct": 98,
+  "pump_interlock_safe": true,
+  "last_updated": "2026-11-07T11:49:53.131Z",
+  "net_battery_flow_watts": 2400,
+  "runtime_hours": 0.9
+}

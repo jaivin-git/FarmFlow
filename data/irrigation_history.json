@@ -1,0 +1,130 @@
+[
+  {
+    "timestamp": "2026-11-07T05:46:46.931Z",
+    "water_available": 1000,
+    "total_demand": 1764.55,
+    "total_allocated": 1000,
+    "unmet": 764.55,
+    "avg_satisfaction": 56.67,
+    "allocation_fairness": 0.8419,
+    "farmer_count": 2,
+    "farmer_rows": [
+      {
+        "farmer": "jaivin",
+        "farmerId": "JAI101",
+        "crop": "Rice (Paddy)",
+        "soil_moisture": 26.77,
+        "demand": 1264.64,
+        "allocated": 716.69,
+        "delivered": 702.43,
+        "satisfied_pct": 55.54
+      },
+      {
+        "farmer": "jaivin",
+        "farmerId": "JAI102",
+        "crop": "Pearl millet (Cumbu)",
+        "soil_moisture": 71.02,
+        "demand": 499.91,
+        "allocated": 283.31,
+        "delivered": 285.3,
+        "satisfied_pct": 57.07
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-11-07T06:12:16.831Z",
+    "water_available": 1000,
+    "total_demand": 1764.55,
+    "total_allocated": 1000,
+    "unmet": 764.55,
+    "avg_satisfaction": 56.67,
+    "allocation_fairness": 0.8419,
+    "farmer_count": 2,
+    "farmer_rows": [
+      {
+        "farmer": "jaivin",
+        "farmerId": "JAI101",
+        "crop": "Rice (Paddy)",
+        "soil_moisture": 26.77,
+        "demand": 1264.64,
+        "allocated": 716.69,
+        "delivered": 702.43,
+        "satisfied_pct": 55.54
+      },
+      {
+        "farmer": "jaivin",
+        "farmerId": "JAI102",
+        "crop": "Pearl millet (Cumbu)",
+        "soil_moisture": 71.02,
+        "demand": 499.91,
+        "allocated": 283.31,
+        "delivered": 285.3,
+        "satisfied_pct": 57.07
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-11-07T06:12:31.551Z",
+    "water_available": 1000,
+    "total_demand": 1764.55,
+    "total_allocated": 1000,
+    "unmet": 764.55,
+    "avg_satisfaction": 56.67,
+    "allocation_fairness": 0.8419,
+    "farmer_count": 2,
+    "farmer_rows": [
+      {
+        "farmer": "jaivin",
+        "farmerId": "JAI101",
+        "crop": "Rice (Paddy)",
+        "soil_moisture": 26.77,
+        "demand": 1264.64,
+        "allocated": 716.69,
+        "delivered": 702.43,
+        "satisfied_pct": 55.54
+      },
+      {
+        "farmer": "jaivin",
+        "farmerId": "JAI102",
+        "crop": "Pearl millet (Cumbu)",
+        "soil_moisture": 71.02,
+        "demand": 499.91,
+        "allocated": 283.31,
+        "delivered": 285.3,
+        "satisfied_pct": 57.07
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-11-07T06:55:53.252Z",
+    "water_available": 1234,
+    "total_demand": 0,
+    "total_allocated": 0,
+    "unmet": 0,
+    "avg_satisfaction": 100,
+    "allocation_fairness": 1,
+    "farmer_count": 2,
+    "farmer_rows": [
+      {
+        "farmer": "jaivin",
+        "farmerId": "JAI101",
+        "crop": "Rice (Paddy)",
+        "soil_moisture": 26.77,
+        "demand": 0,
+        "allocated": 0,
+        "delivered": 0,
+        "satisfied_pct": 100
+      },
+      {
+        "farmer": "jaivin",
+        "farmerId": "JAI102",
+        "crop": "Pearl millet (Cumbu)",
+        "soil_moisture": 71.02,
+        "demand": 0,
+        "allocated": 0,
+        "delivered": 0,
+        "satisfied_pct": 100
+      }
+    ]
+  }
+]

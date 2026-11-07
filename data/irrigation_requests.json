@@ -1,0 +1,42 @@
+[
+  {
+    "id": "REQ-JAI101-002",
+    "farmer_id": "JAI101",
+    "farmer_name": "jaivin",
+    "crop": "Rice (Paddy)",
+    "area_acres": 0.05,
+    "soil_moisture": 26.77,
+    "daily_demand": 0,
+    "requested_litres": 5,
+    "urgency": "emergency",
+    "preferred_time": "asap",
+    "notes": "Leaves wilting, urgent irrigation requested",
+    "status": "fulfilled",
+    "created_at": "2026-11-07T07:05:25.357Z",
+    "reviewed_by": null,
+    "reviewed_at": null,
+    "admin_feedback": null,
+    "fulfilled_at": "2026-11-07T11:19:13.239Z",
+    "allocated_litres": 5
+  },
+  {
+    "id": "REQ-JAI101-001",
+    "farmer_id": "JAI101",
+    "farmer_name": "jaivin",
+    "crop": "Rice (Paddy)",
+    "area_acres": 0.05,
+    "soil_moisture": 26.77,
+    "daily_demand": 1264.6,
+    "requested_litres": 1265,
+    "urgency": "emergency",
+    "preferred_time": "asap",
+    "notes": "Leaves wilting, urgent irrigation requested",
+    "status": "fulfilled",
+    "created_at": "2026-11-07T06:30:43.336Z",
+    "reviewed_by": null,
+    "reviewed_at": null,
+    "admin_feedback": null,
+    "fulfilled_at": "2026-11-07T06:31:47.370Z",
+    "allocated_litres": 1265
+  }
+]

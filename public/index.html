@@ -1,0 +1,3587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>FarmFlow – Solar-Powered Adaptive Irrigation Simulator</title>
+<!-- Chart.js: Local high-speed bundle with CDN fallback -->
+<script src="/chart.umd.min.js"></script>
+<script>
+  if (typeof Chart === 'undefined') {
+    document.write('<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"><\/script>');
+  }
+</script>
+<style>
+  /* ========== RESET & THEME ========== */
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --green:#1b7e36;--green-light:#28a745;--green-dark:#0f4f20;--green-soft:#eafaf1;
+    --amber:#e67e22;--amber-light:#f39c12;--amber-soft:#fef9e7;
+    --sky:#1d8cf8;--sky-light:#3498db;--sky-soft:#ebf5fb;
+    --red:#e74c3c;--red-light:#ff6b6b;--red-soft:#fdedec;
+    --purple:#8e44ad;--purple-soft:#f4ecf7;
+    --bg:#f4f7f4;--card:#ffffff;--border:#dce8dc;
+    --text:#1c2d1c;--text-muted:#5e755e;
+    --shadow:0 4px 20px rgba(18,65,30,0.08);
+    --shadow-hover:0 8px 30px rgba(18,65,30,0.14);
+    --radius:14px;--radius-sm:8px;
+    --font:'Segoe UI',-apple-system,BlinkMacSystemFont,Roboto,Helvetica,sans-serif;
+  }
+  body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+
+  /* ========== PAGES / ROUTER ========== */
+  .page{display:none;min-height:100vh;animation:fadeIn .25s ease}
+  .page.active{display:flex;flex-direction:column}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  /* ========== NAVBAR ========== */
+  .navbar{
+    background:linear-gradient(135deg,#0a2e13 0%,#155325 50%,#28a745 100%);
+    color:#fff;padding:0 24px;height:66px;
+    display:flex;align-items:center;justify-content:space-between;
+    box-shadow:0 3px 14px rgba(0,0,0,.18);position:sticky;top:0;z-index:100;
+  }
+  .navbar-brand{display:flex;align-items:center;gap:12px;font-size:1.3rem;font-weight:800;letter-spacing:-0.5px}
+  .navbar-brand .logo{font-size:1.85rem;filter:drop-shadow(0 2px 4px rgba(0,0,0,.25))}
+  .navbar-brand .tag{font-size:.7rem;background:rgba(255,255,255,.2);padding:3px 9px;border-radius:20px;font-weight:600}
+  .navbar-right{display:flex;align-items:center;gap:12px}
+  .nav-chip{
+    background:rgba(255,255,255,.15);padding:6px 14px;border-radius:20px;
+    font-size:.85rem;display:flex;align-items:center;gap:6px;backdrop-filter:blur(4px);font-weight:600;
+  }
+  .btn-logout{
+    background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.3);
+    color:#fff;padding:7px 15px;border-radius:var(--radius-sm);
+    cursor:pointer;font-size:.85rem;font-weight:600;transition:.2s;
+  }
+  .btn-logout:hover{background:rgba(255,255,255,.28);transform:translateY(-1px)}
+
+  /* Notification Bell Button */
+  .btn-notif{
+    position:relative;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);
+    color:#fff;width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    cursor:pointer;font-size:1.1rem;transition:.2s;
+  }
+  .btn-notif:hover{background:rgba(255,255,255,.28);transform:scale(1.05)}
+  .notif-badge{
+    position:absolute;top:-4px;right:-4px;background:#e74c3c;color:#fff;
+    font-size:.68rem;font-weight:800;min-width:18px;height:18px;padding:0 4px;
+    border-radius:10px;display:flex;align-items:center;justify-content:center;
+    border:2px solid #155325;animation:pulse 2s infinite;
+  }
+  @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
+
+  /* Notification Dropdown Drawer (Global Fixed) */
+  .notif-drawer{
+    position: fixed;
+    top: 72px;
+    right: 24px;
+    width: 390px;
+    max-width: 92vw;
+    background: #ffffff;
+    color: var(--text);
+    border-radius: var(--radius);
+    box-shadow: 0 16px 48px rgba(0,0,0,.28);
+    border: 1.5px solid var(--border);
+    z-index: 9999;
+    display: none;
+    flex-direction: column;
+    max-height: 520px;
+    overflow: hidden;
+    animation: fadeIn .2s ease;
+  }
+  .notif-drawer.open{display:flex}
+  .notif-header{
+    padding:14px 18px;background:#f9fcf9;border-bottom:1px solid var(--border);
+    display:flex;align-items:center;justify-content:space-between;font-weight:700;
+  }
+  .notif-list{overflow-y:auto;padding:8px 0;flex:1}
+  .notif-item{
+    padding:12px 18px;border-bottom:1px solid #f0f4f0;display:flex;gap:12px;
+    font-size:.85rem;cursor:pointer;transition:.15s;
+  }
+  .notif-item:hover{background:#f6fbf6}
+  .notif-item.unread{background:#effbf3;font-weight:600}
+  .notif-icon{font-size:1.3rem;flex-shrink:0;margin-top:2px}
+  .notif-time{font-size:.72rem;color:var(--text-muted);margin-top:4px}
+
+  /* ========== SIDEBAR + CONTENT ========== */
+  .layout{display:flex;flex:1;overflow:hidden}
+  .sidebar{
+    width:245px;background:#0d3316;color:#fff;
+    padding:18px 0;display:flex;flex-direction:column;gap:3px;
+    min-height:calc(100vh - 66px);flex-shrink:0;box-shadow:2px 0 10px rgba(0,0,0,.05);
+  }
+  .sidebar-label{
+    font-size:.68rem;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;
+    color:rgba(255,255,255,.45);padding:14px 22px 6px;
+  }
+  .sidebar-item{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:11px 22px;cursor:pointer;font-size:.92rem;
+    color:rgba(255,255,255,.84);border-left:3.5px solid transparent;
+    transition:.18s;font-weight:500;
+  }
+  .sidebar-item:hover{background:rgba(255,255,255,.08);color:#fff}
+  .sidebar-item.active{
+    background:linear-gradient(90deg,rgba(40,167,69,.25),transparent);
+    border-left-color:var(--amber-light);color:#fff;font-weight:700;
+  }
+  .sidebar-item-left{display:flex;align-items:center;gap:12px}
+  .sidebar-item .si-icon{font-size:1.15rem;width:24px;text-align:center}
+  .sidebar-badge{
+    background:#e74c3c;color:#fff;font-size:.7rem;font-weight:800;
+    padding:2px 7px;border-radius:10px;
+  }
+
+  /* ========== MAIN CONTENT ========== */
+  .main{flex:1;overflow-y:auto;padding:28px}
+  .section{display:none}
+  .section.active{display:block;animation:fadeIn .25s ease}
+
+  /* ========== CARDS ========== */
+  .card{
+    background:var(--card);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:22px;margin-bottom:20px;
+    border:1px solid var(--border);transition:box-shadow .2s;
+  }
+  .card:hover{box-shadow:var(--shadow-hover)}
+  .card-header{
+    display:flex;align-items:center;justify-content:space-between;
+    margin-bottom:16px;flex-wrap:wrap;gap:10px;
+  }
+  .card-title{
+    font-size:1.1rem;font-weight:700;color:var(--green-dark);
+    display:flex;align-items:center;gap:10px;
+  }
+
+  /* ========== STAT METRIC GRID ========== */
+  .stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:15px;margin-bottom:22px}
+  .stat-card{
+    background:var(--card);border-radius:var(--radius-sm);padding:16px;
+    border:1px solid var(--border);box-shadow:var(--shadow);position:relative;
+    overflow:hidden;transition:transform .2s, box-shadow .2s;
+  }
+  .stat-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-hover)}
+  .stat-card::after{
+    content:'';position:absolute;top:0;left:0;right:0;height:3.5px;
+    background:linear-gradient(90deg,var(--green),var(--sky-light));
+  }
+  .stat-label{font-size:.74rem;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.6px;margin-bottom:5px}
+  .stat-value{font-size:1.6rem;font-weight:800;color:var(--green-dark);display:flex;align-items:baseline;gap:4px}
+  .stat-unit{font-size:.8rem;color:var(--text-muted);font-weight:500}
+  .stat-sub{font-size:.76rem;color:var(--text-muted);margin-top:5px}
+
+  /* ========== SOLAR & BATTERY TELEMETRY WIDGET ========== */
+  .solar-telemetry-box{
+    background:linear-gradient(135deg,#0d3818 0%,#185e2b 60%,#1f7a37 100%);
+    color:#fff;border-radius:var(--radius);padding:22px;margin-bottom:22px;
+    box-shadow:0 8px 24px rgba(13,56,24,.25);position:relative;overflow:hidden;
+  }
+  .solar-telemetry-box::before{
+    content:'☀️';position:absolute;right:15px;bottom:-15px;font-size:6.5rem;
+    opacity:.08;pointer-events:none;
+  }
+  .st-grid{display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr;gap:16px;align-items:center}
+  @media(max-width:960px){.st-grid{grid-template-columns:1fr 1fr}}
+  @media(max-width:540px){.st-grid{grid-template-columns:1fr}}
+
+  /* Visual Battery Gauge */
+  .battery-wrap{
+    display:flex;align-items:center;gap:14px;
+    background:rgba(255,255,255,.1);padding:12px 16px;border-radius:var(--radius-sm);
+    border:1px solid rgba(255,255,255,.2);backdrop-filter:blur(4px);
+  }
+  .battery-icon-visual{
+    width:56px;height:28px;border:2.5px solid #fff;border-radius:6px;
+    position:relative;padding:2px;display:flex;align-items:center;
+  }
+  .battery-icon-visual::after{
+    content:'';position:absolute;right:-6px;top:7px;width:3.5px;height:10px;
+    background:#fff;border-radius:0 2px 2px 0;
+  }
+  .battery-level-fill{
+    height:100%;border-radius:3px;background:#2ecc71;
+    transition:width .5s ease, background .5s ease;
+  }
+  .battery-info-text{display:flex;flex-direction:column}
+  .battery-pct{font-size:1.45rem;font-weight:900;line-height:1}
+  .battery-state{font-size:.75rem;opacity:.9;margin-top:2px}
+
+  /* Weather Selector */
+  .weather-chip-group{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+  .weather-btn{
+    background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);
+    color:#fff;padding:4px 10px;border-radius:20px;font-size:.78rem;font-weight:600;
+    cursor:pointer;transition:.18s;
+  }
+  .weather-btn:hover{background:rgba(255,255,255,.3)}
+  .weather-btn.active{background:#ffeb3b;color:#1a3a1a;border-color:#ffeb3b;font-weight:800}
+
+  /* Emergency moisture alert card */
+  .alert-banner-urgent{
+    background:linear-gradient(135deg,#c0392b,#e74c3c);color:#fff;
+    border-radius:var(--radius);padding:18px 24px;margin-bottom:20px;
+    display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;
+    box-shadow:0 6px 20px rgba(192,57,43,.25);animation:pulse 2.5s infinite;
+  }
+
+  /* ========== AGRICULTURAL WEATHER FORECAST WIDGET ========== */
+  .weather-forecast-card {
+    background: linear-gradient(135deg, #ffffff 0%, #f4fbf5 100%);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px;
+    margin-bottom: 24px;
+    box-shadow: var(--shadow);
+  }
+  .weather-fc-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .weather-current-panel {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 20px;
+    background: linear-gradient(135deg, #e8f5e9 0%, #e0f2fe 100%);
+    border: 1.5px solid #c8e6c9;
+    border-radius: var(--radius-sm);
+    padding: 16px 20px;
+    margin-bottom: 18px;
+  }
+  @media(max-width:768px){.weather-current-panel{grid-template-columns:1fr;text-align:center}}
+  .weather-temp-badge {
+    font-size: 2.6rem;
+    font-weight: 800;
+    color: var(--green-dark);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    line-height: 1;
+  }
+  .weather-pills-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .weather-pill {
+    background: rgba(255,255,255,0.9);
+    border: 1px solid rgba(0,0,0,0.08);
+    border-radius: 20px;
+    padding: 5px 12px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .weather-advisory-banner {
+    background: #fff8e1;
+    border-left: 4px solid var(--amber);
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin-bottom: 18px;
+    font-size: 0.88rem;
+    color: #5d4037;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    line-height: 1.4;
+  }
+  .forecast-cards-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 12px;
+  }
+  .fc-day-card {
+    background: #ffffff;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px 10px;
+    text-align: center;
+    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+  }
+  .fc-day-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-hover);
+    border-color: var(--green-light);
+  }
+  .fc-day-card.today {
+    background: #f0fdf4;
+    border-color: #86efac;
+    box-shadow: 0 3px 12px rgba(34, 197, 94, 0.15);
+  }
+  .fc-day-name {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+  .fc-day-icon {
+    font-size: 2.2rem;
+    line-height: 1;
+    margin: 6px 0;
+  }
+  .fc-day-condition {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+  .fc-day-temps {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+  .fc-day-rain {
+    display: inline-block;
+    background: #e0f2fe;
+    color: #0369a1;
+    border-radius: 12px;
+    padding: 2px 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .fc-day-solar {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+  }
+
+  /* ========== ALERT BANNERS (SUCCESS / INFO) ========== */
+  .alert-banner-success {
+    background: linear-gradient(135deg, #1b7e36 0%, #28a745 100%);
+    color: #fff;
+    border-radius: var(--radius);
+    padding: 18px 24px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 14px;
+    box-shadow: 0 6px 20px rgba(27, 126, 54, 0.22);
+  }
+  .alert-banner-info {
+    background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%);
+    color: #fff;
+    border-radius: var(--radius);
+    padding: 16px 22px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 14px;
+    box-shadow: 0 6px 20px rgba(2, 132, 199, 0.2);
+  }
+
+  /* ========== DIGITAL TWIN HYDRAULIC NETWORK ========== */
+  .digital-twin-card {
+    background: linear-gradient(135deg, #0a2e14 0%, #114720 50%, #0d3818 100%);
+    border: 1.5px solid #28a745;
+    border-radius: var(--radius);
+    padding: 22px;
+    margin-bottom: 24px;
+    color: #fff;
+    box-shadow: 0 10px 32px rgba(9, 38, 18, 0.35);
+    position: relative;
+    overflow: hidden;
+  }
+  .dt-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 18px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.15);
+  }
+  .dt-badge {
+    background: rgba(46, 204, 113, 0.2);
+    border: 1px solid #2ecc71;
+    color: #a7f3d0;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .dt-pulse-dot {
+    width: 8px;
+    height: 8px;
+    background: #2ecc71;
+    border-radius: 50%;
+    animation: dtBlink 1.5s infinite;
+  }
+  @keyframes dtBlink { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(1.3); } }
+  
+  .dt-stage {
+    display: grid;
+    grid-template-columns: 1fr 1.6fr 1.2fr;
+    gap: 16px;
+    align-items: center;
+    background: rgba(0,0,0,0.22);
+    border-radius: var(--radius-sm);
+    padding: 18px;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  @media(max-width:900px){ .dt-stage { grid-template-columns: 1fr; } }
+
+  .dt-node {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    text-align: center;
+    transition: transform 0.2s, border-color 0.2s;
+  }
+  .dt-node:hover {
+    transform: translateY(-2px);
+    border-color: #2ecc71;
+  }
+  .dt-pipe {
+    position: relative;
+    height: 10px;
+    background: #1a4a26;
+    border-radius: 5px;
+    overflow: hidden;
+    margin: 10px 0;
+  }
+  .dt-pipe-flow {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(90deg, transparent, #38bdf8, #0284c7, transparent);
+    background-size: 200% 100%;
+    animation: pipeFlow 2s linear infinite;
+  }
+  @keyframes pipeFlow { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+  .dt-valve-chip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    font-size: 0.82rem;
+  }
+  .dt-valve-chip.active {
+    border-color: #38bdf8;
+    background: rgba(56, 189, 248, 0.15);
+  }
+
+  /* Audio Speech Button & Animation */
+  .voice-btn {
+    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+    color: #fff;
+    border: none;
+    border-radius: 20px;
+    padding: 7px 16px;
+    font-size: 0.84rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: transform 0.18s, box-shadow 0.18s;
+  }
+  .voice-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
+  }
+  .sound-wave {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    height: 14px;
+  }
+  .sound-bar {
+    width: 3px;
+    height: 100%;
+    background: #fff;
+    border-radius: 2px;
+    animation: soundWave 1.2s ease-in-out infinite;
+  }
+  .sound-bar:nth-child(2) { animation-delay: 0.2s; }
+  .sound-bar:nth-child(3) { animation-delay: 0.4s; }
+  .sound-bar:nth-child(4) { animation-delay: 0.1s; }
+  @keyframes soundWave { 0%, 100% { height: 4px; } 50% { height: 14px; } }
+
+  /* Spinning animation for refresh buttons */
+  @keyframes spin { 100% { transform: rotate(360deg); } }
+  .spin { display: inline-block; animation: spin 0.8s linear infinite; }
+
+  /* Root Zone Radial Dial */
+  .soil-gauge-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    gap: 20px;
+    flex-wrap: wrap;
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px;
+    margin-bottom: 24px;
+    box-shadow: var(--shadow);
+  }
+
+  /* ========== CHARTS WRAPPER ========== */
+  .chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:22px}
+  @media(max-width:900px){.chart-grid{grid-template-columns:1fr}}
+  .chart-box{position:relative;height:280px;width:100%}
+
+  /* ========== BUTTONS ========== */
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:7px;
+    padding:9px 18px;border-radius:var(--radius-sm);border:none;
+    cursor:pointer;font-size:.88rem;font-weight:600;transition:.18s;
+    text-decoration:none;line-height:1.2;
+  }
+  .btn-primary{background:var(--green);color:#fff}
+  .btn-primary:hover{background:var(--green-light);transform:translateY(-1px)}
+  .btn-warning{background:var(--amber);color:#fff}
+  .btn-warning:hover{background:var(--amber-light)}
+  .btn-danger{background:var(--red);color:#fff}
+  .btn-danger:hover{background:var(--red-light)}
+  .btn-sky{background:var(--sky);color:#fff}
+  .btn-sky:hover{background:var(--sky-light)}
+  .btn-secondary{background:#f0f5f0;color:var(--green-dark);border:1.5px solid var(--border)}
+  .btn-secondary:hover{background:#e2eee2}
+  .btn-sm{padding:5px 12px;font-size:.8rem}
+  .btn-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:18px}
+
+  /* ========== FORMS ========== */
+  .form-group{margin-bottom:15px}
+  .form-group label{display:block;font-size:.83rem;font-weight:700;color:var(--text-muted);margin-bottom:6px}
+  .form-control{
+    width:100%;padding:10px 14px;border:1.5px solid var(--border);
+    border-radius:var(--radius-sm);font-size:.92rem;color:var(--text);
+    background:#fff;transition:.2s;
+  }
+  .form-control:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px rgba(40,167,69,.15)}
+  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+  .form-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:15px}
+  @media(max-width:650px){.form-row,.form-row-3{grid-template-columns:1fr}}
+
+  /* ========== TABLES ========== */
+  .table-wrap{overflow-x:auto;border-radius:var(--radius-sm);border:1px solid var(--border);background:#fff}
+  table{width:100%;border-collapse:collapse;font-size:.88rem}
+  thead th{
+    background:#165b2a;color:#fff;padding:12px 14px;
+    text-align:left;white-space:nowrap;font-weight:700;letter-spacing:.3px;
+  }
+  tbody tr:nth-child(even){background:#f9fcf9}
+  tbody tr:hover{background:#edf7ed}
+  td{padding:10px 14px;border-top:1px solid var(--border);vertical-align:middle}
+  .badge{
+    display:inline-flex;align-items:center;gap:4px;padding:3px 10px;
+    border-radius:50px;font-size:.75rem;font-weight:700;letter-spacing:.3px;
+  }
+  .badge-green{background:var(--green-soft);color:#0f5132;border:1px solid #b7e4c7}
+  .badge-red{background:var(--red-soft);color:#842029;border:1px solid #f8d7da}
+  .badge-amber{background:var(--amber-soft);color:#664d03;border:1px solid #ffecb5}
+  .badge-sky{background:var(--sky-soft);color:#084298;border:1px solid #cce5ff}
+
+  /* ========== LOGIN PAGE ========== */
+  #login-page{
+    background:radial-gradient(circle at top right,#2d7a4f,#0e3717);
+    justify-content:center;align-items:center;padding:20px;
+  }
+  .login-container{
+    background:#fff;border-radius:24px;padding:42px;width:100%;max-width:440px;
+    box-shadow:0 24px 70px rgba(0,0,0,.4);position:relative;overflow:hidden;
+  }
+  .login-container::before{
+    content:'';position:absolute;top:0;left:0;right:0;height:6px;
+    background:linear-gradient(90deg,var(--green),#f1c40f,var(--sky));
+  }
+  .login-logo{text-align:center;margin-bottom:26px}
+  .login-logo .plant{font-size:3.8rem;display:block;filter:drop-shadow(0 4px 6px rgba(0,0,0,.15))}
+  .login-logo h1{font-size:1.75rem;font-weight:900;color:var(--green-dark);margin-top:6px;letter-spacing:-0.5px}
+  .login-logo p{font-size:.85rem;color:var(--text-muted);margin-top:2px}
+  .role-tabs{
+    display:flex;margin-bottom:24px;border:1.5px solid var(--border);
+    border-radius:var(--radius-sm);overflow:hidden;background:#f8faf8;
+  }
+  .role-tab{
+    flex:1;padding:12px;text-align:center;cursor:pointer;font-weight:700;
+    font-size:.92rem;color:var(--text-muted);transition:.2s;
+  }
+  .role-tab.active{background:var(--green);color:#fff;box-shadow:0 2px 8px rgba(33,136,56,.3)}
+  .login-btn{
+    width:100%;padding:13px;font-size:1rem;border-radius:var(--radius-sm);border:none;
+    cursor:pointer;font-weight:700;color:#fff;background:var(--green);
+    transition:.2s;margin-top:8px;box-shadow:0 4px 12px rgba(33,136,56,.25);
+  }
+  .login-btn:hover{background:var(--green-light);transform:translateY(-1px)}
+  .login-error{background:var(--red-soft);color:#721c24;border:1px solid #f1b0b7;border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:14px;font-size:.88rem;display:none}
+  .login-setup-note{background:var(--amber-soft);color:#856404;border:1px solid #ffeeba;border-radius:var(--radius-sm);padding:11px 14px;margin-bottom:14px;font-size:.85rem}
+
+  /* ========== MODALS ========== */
+  .modal-overlay{
+    position:fixed;inset:0;background:rgba(0,0,0,.6);
+    display:flex;align-items:center;justify-content:center;
+    z-index:2000;animation:fadeIn .2s ease;padding:16px;backdrop-filter:blur(3px);
+  }
+  .modal-overlay.hidden{display:none}
+  .modal-box{
+    background:#fff;border-radius:var(--radius);padding:26px;
+    width:100%;max-width:540px;max-height:92vh;overflow-y:auto;
+    box-shadow:0 24px 70px rgba(0,0,0,.35);border:1px solid var(--border);
+  }
+  .modal-title{font-size:1.15rem;font-weight:800;color:var(--green-dark);margin-bottom:18px;display:flex;align-items:center;gap:10px}
+  .modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:22px}
+
+  /* ========== TOAST NOTIFICATION ========== */
+  .toast{
+    position:fixed;bottom:24px;right:24px;background:#145224;color:#fff;
+    padding:13px 22px;border-radius:var(--radius-sm);font-size:.9rem;font-weight:600;
+    box-shadow:0 8px 30px rgba(0,0,0,.25);z-index:9999;display:none;align-items:center;gap:10px;
+  }
+  .toast.show{display:flex;animation:fadeIn .25s ease}
+  .toast.error{background:#c0392b}
+
+  /* ========== PROGRESS BARS ========== */
+  .progress-wrap{background:#e8f0e8;border-radius:50px;height:9px;overflow:hidden;margin-top:6px}
+  .progress-fill{height:100%;border-radius:50px;transition:.4s ease}
+
+  /* ========== FARMER DASHBOARD ========== */
+  .farmer-hero{
+    background:linear-gradient(135deg,#0c3918 0%,#1b7230 100%);
+    color:#fff;border-radius:var(--radius);padding:28px;margin-bottom:22px;
+    display:flex;align-items:center;gap:22px;box-shadow:0 6px 24px rgba(12,57,24,.22);
+  }
+  .farmer-hero-icon{font-size:3.4rem}
+  .farmer-hero h2{font-size:1.55rem;font-weight:900}
+  .farmer-hero p{opacity:.9;font-size:.9rem;margin-top:4px}
+
+  /* Crop timeline */
+  .crop-timeline{display:flex;align-items:center;justify-content:space-between;position:relative;margin:28px 10px 10px}
+  .crop-timeline::before{
+    content:'';position:absolute;top:16px;left:0;right:0;height:4px;
+    background:#e0ede0;z-index:1;
+  }
+  .timeline-step{position:relative;z-index:2;text-align:center}
+  .timeline-dot{
+    width:34px;height:34px;border-radius:50%;background:#e0ede0;
+    color:var(--text-muted);display:flex;align-items:center;justify-content:center;
+    font-weight:700;font-size:.85rem;margin:0 auto 8px;border:3px solid #fff;
+    box-shadow:0 2px 6px rgba(0,0,0,.1);transition:.2s;
+  }
+  .timeline-step.active .timeline-dot{background:var(--green);color:#fff;box-shadow:0 0 0 4px rgba(40,167,69,.25)}
+  .timeline-step.completed .timeline-dot{background:var(--green-dark);color:#fff}
+  .timeline-label{font-size:.78rem;font-weight:700;color:var(--text-muted)}
+
+  /* Gantt Schedule visual */
+  .gantt-bar{
+    height:26px;border-radius:6px;background:linear-gradient(90deg,var(--sky),var(--sky-light));
+    color:#fff;font-size:.78rem;font-weight:700;display:flex;align-items:center;
+    padding:0 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+
+  /* Password field with eye */
+  .pw-group{position:relative}
+  .pw-toggle{
+    position:absolute;right:12px;top:50%;transform:translateY(-50%);
+    background:none;border:none;cursor:pointer;font-size:1rem;color:var(--text-muted);
+  }
+
+  .preset-card{
+    background:#f9fcf9;border:1.5px dashed var(--border);border-radius:var(--radius-sm);
+    padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;
+    gap:14px;flex-wrap:wrap;
+  }
+
+  @media(max-width:768px){
+    .sidebar{display:none}
+    .main{padding:16px}
+  }
+</style>
+</head>
+<body>
+
+<!-- TOAST -->
+<div id="toast" class="toast"></div>
+
+<!-- ==================== LOGIN PAGE ==================== -->
+<div class="page active" id="login-page">
+  <div class="login-container">
+    <div class="login-logo">
+      <span class="plant">☀️🌾</span>
+      <h1>FarmFlow</h1>
+      <p>Solar-Powered Adaptive Irrigation Simulator</p>
+    </div>
+
+    <div class="role-tabs">
+      <div class="role-tab active" id="tab-farmer" onclick="switchRole('farmer')">🧑‍🌾 Farmer Login</div>
+      <div class="role-tab" id="tab-admin" onclick="switchRole('admin')">⚙️ Edge Coordinator</div>
+    </div>
+
+    <!-- Farmer Login Form -->
+    <div id="farmer-login-form">
+      <div class="login-error" id="farmer-error"></div>
+      <div class="form-group">
+        <label>Farmer ID</label>
+        <input class="form-control" id="farmer-id-input" placeholder="e.g. JAI101" autocomplete="username"/>
+      </div>
+      <div class="form-group pw-group">
+        <label>Password</label>
+        <input class="form-control" id="farmer-pass-input" type="password" placeholder="Enter farmer password"/>
+        <button type="button" class="pw-toggle" onclick="togglePw('farmer-pass-input')">👁️</button>
+      </div>
+      <button class="login-btn" onclick="farmerLogin()">🔐 Login to Farmer Field Portal</button>
+      <p style="font-size:.78rem;color:var(--text-muted);text-align:center;margin-top:14px">
+        Need your password? Contact your edge irrigation coordinator.
+      </p>
+    </div>
+
+    <!-- Admin / Coordinator Login Form -->
+    <div id="admin-login-form" style="display:none">
+      <div id="admin-setup-note" class="login-setup-note" style="display:none">
+        👷 <strong>First-Time Setup:</strong> Create the edge coordinator account credentials below.
+      </div>
+      <div class="login-error" id="admin-error"></div>
+      <div class="form-group">
+        <label>Coordinator Username</label>
+        <input class="form-control" id="admin-user-input" placeholder="e.g. admin" autocomplete="username"/>
+      </div>
+      <div class="form-group pw-group">
+        <label>Password <span id="admin-pass-hint" style="display:none;color:var(--text-muted)">(min 10 characters)</span></label>
+        <input class="form-control" id="admin-pass-input" type="password" placeholder="Enter coordinator password"/>
+        <button type="button" class="pw-toggle" onclick="togglePw('admin-pass-input')">👁️</button>
+      </div>
+      <div class="form-group pw-group" id="admin-confirm-group" style="display:none">
+        <label>Confirm Password</label>
+        <input class="form-control" id="admin-confirm-input" type="password" placeholder="Confirm password"/>
+      </div>
+      <button class="login-btn" id="admin-login-btn" onclick="adminLogin()">🔐 Login as Coordinator</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== ADMIN / COORDINATOR PORTAL ==================== -->
+<div class="page" id="admin-page">
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <span class="logo">🌾</span> FarmFlow
+      <span class="tag">Edge Coordinator Hub</span>
+    </div>
+    <div class="navbar-right">
+      <!-- Notification Bell -->
+      <button class="btn-notif" onclick="toggleNotifDrawer()" title="Notifications">
+        🔔
+        <span class="notif-badge" id="admin-notif-count" style="display:none">0</span>
+      </button>
+
+      <div class="nav-chip">
+        <span>⚙️</span> <span id="admin-username-display">Coordinator</span>
+      </div>
+      <button class="btn-logout" onclick="logout()">Logout</button>
+    </div>
+  </nav>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="sidebar-label">Overview</div>
+      <div class="sidebar-item active" onclick="showSection('dashboard')" id="nav-dashboard">
+        <div class="sidebar-item-left"><span class="si-icon">📊</span> Live Dashboard</div>
+      </div>
+      <div class="sidebar-item" onclick="showSection('requests')" id="nav-requests">
+        <div class="sidebar-item-left"><span class="si-icon">📬</span> Water Requests</div>
+        <span class="sidebar-badge" id="side-req-badge" style="display:none">0</span>
+      </div>
+      <div class="sidebar-item" onclick="showSection('farmers')" id="nav-farmers">
+        <div class="sidebar-item-left"><span class="si-icon">🧑‍🌾</span> Farmers & Security</div>
+      </div>
+      <div class="sidebar-label">Water Management</div>
+      <div class="sidebar-item" onclick="showSection('run-irrigation')" id="nav-run-irrigation">
+        <div class="sidebar-item-left"><span class="si-icon">💧</span> Run Irrigation</div>
+      </div>
+      <div class="sidebar-item" onclick="showSection('compare')" id="nav-compare">
+        <div class="sidebar-item-left"><span class="si-icon">⚖️</span> Compare Strategies</div>
+      </div>
+      <div class="sidebar-item" onclick="showSection('simulation')" id="nav-simulation">
+        <div class="sidebar-item-left"><span class="si-icon">🔬</span> Scarcity Simulation</div>
+      </div>
+      <div class="sidebar-label">System</div>
+      <div class="sidebar-item" onclick="showSection('config')" id="nav-config">
+        <div class="sidebar-item-left"><span class="si-icon">⚙️</span> Configuration</div>
+      </div>
+      <div class="sidebar-item" onclick="showSection('audit')" id="nav-audit">
+        <div class="sidebar-item-left"><span class="si-icon">📋</span> Audit Log</div>
+      </div>
+      <div class="sidebar-item" onclick="showSection('credentials')" id="nav-credentials">
+        <div class="sidebar-item-left"><span class="si-icon">🔑</span> Admin Account</div>
+      </div>
+    </aside>
+
+    <main class="main">
+
+      <!-- ==================== DASHBOARD SECTION ==================== -->
+      <div class="section active" id="section-dashboard">
+        <!-- Live Solar & Battery Telemetry Widget -->
+        <div class="solar-telemetry-box" id="solar-telemetry-card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+            <div style="display:flex;align-items:center;gap:10px">
+              <span style="font-size:1.6rem">☀️🔋</span>
+              <div>
+                <h3 style="font-size:1.15rem;font-weight:800;letter-spacing:-0.3px">Solar Power & Battery Microgrid Subsystem</h3>
+                <p style="font-size:.8rem;opacity:.9">Real-time PV generation, battery state of charge (SoC) & pump power safety guard</p>
+              </div>
+            </div>
+            <!-- Weather selector -->
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:.8rem;font-weight:700">Environment:</span>
+              <div class="weather-chip-group" id="weather-selector">
+                <button class="weather-btn active" onclick="setWeather('Sunny')">☀️ Sunny</button>
+                <button class="weather-btn" onclick="setWeather('Partly Cloudy')">⛅ Partly Cloudy</button>
+                <button class="weather-btn" onclick="setWeather('Overcast')">☁️ Overcast</button>
+                <button class="weather-btn" onclick="setWeather('Rainy')">🌧️ Rainy</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="st-grid">
+            <!-- Battery Graphic -->
+            <div class="battery-wrap">
+              <div class="battery-icon-visual">
+                <div class="battery-level-fill" id="battery-fill" style="width:84%"></div>
+              </div>
+              <div class="battery-info-text">
+                <div class="battery-pct"><span id="battery-soc-val">84.5</span>%</div>
+                <div class="battery-state" id="battery-state-text">⚡ Charging (+3.5 kW)</div>
+              </div>
+            </div>
+
+            <!-- Battery Voltage & Capacity -->
+            <div style="background:rgba(255,255,255,.1);padding:10px 14px;border-radius:var(--radius-sm)">
+              <div style="font-size:.72rem;opacity:.8;font-weight:700">BATTERY BANK (48V)</div>
+              <div style="font-size:1.25rem;font-weight:800" id="battery-voltage-val">51.6 V</div>
+              <div style="font-size:.75rem;opacity:.9" id="battery-capacity-sub">12.0 kWh LiFePO4 (98% Health)</div>
+            </div>
+
+            <!-- Solar PV Output -->
+            <div style="background:rgba(255,255,255,.1);padding:10px 14px;border-radius:var(--radius-sm)">
+              <div style="font-size:.72rem;opacity:.8;font-weight:700">SOLAR GENERATION</div>
+              <div style="font-size:1.25rem;font-weight:800" id="solar-watts-val">3,520 W</div>
+              <div style="font-size:.75rem;opacity:.9" id="solar-irradiance-sub">Irradiance: 880 W/m² (4 kW Array)</div>
+            </div>
+
+            <!-- Interlock & Safety Guard -->
+            <div style="background:rgba(255,255,255,.1);padding:10px 14px;border-radius:var(--radius-sm)">
+              <div style="font-size:.72rem;opacity:.8;font-weight:700">PUMP POWER INTERLOCK</div>
+              <div style="font-size:1.15rem;font-weight:800" id="solar-lock-status">✅ Power Safe</div>
+              <div style="font-size:.75rem;opacity:.9" id="solar-runtime-sub">Ready for 5HP Pump Run</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Metric Stat Cards -->
+        <div class="stat-grid" id="dashboard-stats"></div>
+
+        <!-- Charts Row -->
+        <div class="chart-grid">
+          <div class="card">
+            <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+              <div class="card-title">🌾 Crop Distribution across Plots</div>
+              <span class="badge badge-green" id="crop-total-badge">Plots</span>
+            </div>
+            <div class="chart-box" id="crop-chart-box">
+              <canvas id="cropChart"></canvas>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+              <div class="card-title">💧 Recent Irrigation Performance</div>
+              <span class="badge badge-sky" id="perf-run-badge">Nash Efficiency</span>
+            </div>
+            <div class="chart-box" id="satisfaction-chart-box">
+              <canvas id="satisfactionChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hydraulic Digital Twin for Admin / Coordinator -->
+        <div class="digital-twin-card" id="admin-digital-twin">
+          <div class="dt-header">
+            <div style="display:flex;align-items:center;gap:12px">
+              <span style="font-size:1.8rem">🌊</span>
+              <div>
+                <div style="font-weight:800;font-size:1.15rem;letter-spacing:-0.3px">Canal & Valve Hydraulic Digital Twin</div>
+                <div style="font-size:0.8rem;color:#bbf7d0">Live physics & hydraulic flow simulation from 5HP solar canal pump to all field valves</div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px">
+              <div class="dt-badge"><span class="dt-pulse-dot"></span> LIVE HYDRAULIC NETWORK</div>
+              <button class="btn btn-secondary btn-sm" onclick="pulseCanalFlow()" style="background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.3)">▶️ Test Flow Pulse</button>
+            </div>
+          </div>
+
+          <div class="dt-stage">
+            <!-- Source Node: Solar PV & Pump -->
+            <div class="dt-node">
+              <div style="font-size:2.2rem">☀️ ⚙️</div>
+              <div style="font-weight:800;font-size:0.95rem;margin-top:4px">Solar DC Pump (5HP)</div>
+              <div style="font-size:0.75rem;color:#a7f3d0;margin-top:2px" id="admin-dt-pump-status">🟢 Impeller Active • 10.0 L/min</div>
+              <div style="font-size:0.72rem;color:rgba(255,255,255,0.7);margin-top:6px">Pressure: 1.85 bar • Head: 18m</div>
+            </div>
+
+            <!-- Pipeline Flow Graphic -->
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:#93c5fd;font-weight:700">
+                <span>Main Canal Pipeline (100mm PVC)</span>
+                <span>Flow: 5.0 L/min</span>
+              </div>
+              <div class="dt-pipe">
+                <div class="dt-pipe-flow" id="dt-pipe-anim"></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:0.7rem;color:rgba(255,255,255,0.6)">
+                <span>Sump Inlet</span>
+                <span>Friction Loss: 0.12 bar</span>
+                <span>Distribution Manifold</span>
+              </div>
+            </div>
+
+            <!-- Distribution Solenoid Valves -->
+            <div id="admin-dt-valves">
+              <div class="dt-valve-chip active" id="dt-valve-JAI101">
+                <div>
+                  <strong>Valve-JAI101 (jaivin)</strong>
+                  <div style="font-size:0.72rem;color:#38bdf8">Rice (Paddy) • 0.05 ac</div>
+                </div>
+                <span class="badge badge-sky" style="font-size:0.72rem">💧 Satisfied</span>
+              </div>
+              <div class="dt-valve-chip" id="dt-valve-JAI102">
+                <div>
+                  <strong>Valve-JAI102 (jaivin)</strong>
+                  <div style="font-size:0.72rem;color:rgba(255,255,255,0.6)">Pearl millet • 0.07 ac</div>
+                </div>
+                <span class="badge" style="background:rgba(255,255,255,.1);color:#fff;font-size:0.72rem">Standby</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Registered Active Farmers Table -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🌱 Active Farmers & Water Demand Summary</div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-secondary btn-sm" onclick="showSection('requests')">📬 View Water Requests</button>
+              <button class="btn btn-secondary btn-sm" onclick="exportFarmersCSV()">📥 Export CSV</button>
+            </div>
+          </div>
+          <div id="dashboard-farmer-list"></div>
+        </div>
+      </div>
+
+      <!-- ==================== WATER REQUESTS & APPROVALS SECTION ==================== -->
+      <div class="section" id="section-requests">
+        <div class="card-header">
+          <div>
+            <h2 style="font-size:1.35rem;font-weight:800;color:var(--green-dark)">📬 Farmer Irrigation Requests & Approvals</h2>
+            <p style="font-size:.85rem;color:var(--text-muted)">Incoming water requests from farmers. Review, approve, or schedule with priority-weighted Nash Bargaining.</p>
+          </div>
+          <div class="btn-row" style="margin-bottom:0">
+            <button class="btn btn-secondary btn-sm" onclick="loadRequests('pending')">Pending Only</button>
+            <button class="btn btn-secondary btn-sm" onclick="loadRequests('all')">All Requests</button>
+            <button class="btn btn-secondary btn-sm" onclick="loadRequests()">🔄 Refresh</button>
+          </div>
+        </div>
+
+        <div class="card" style="padding:0">
+          <div class="table-wrap" id="requests-table-wrap">
+            <div style="padding:30px;text-align:center;color:var(--text-muted)">Loading requests…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== FARMERS & PASSWORDS SECTION ==================== -->
+      <div class="section" id="section-farmers">
+        <div class="card-header">
+          <div>
+            <h2 style="font-size:1.35rem;font-weight:800;color:var(--green-dark)">🧑‍🌾 Farmer Management & Security</h2>
+            <p style="font-size:.85rem;color:var(--text-muted)">Register farmers, set passwords, edit land details & manage active status</p>
+          </div>
+          <div class="btn-row" style="margin-bottom:0">
+            <button class="btn btn-primary" onclick="openAddFarmer()">➕ Register New Farmer</button>
+            <button class="btn btn-secondary" onclick="exportFarmersCSV()">📥 Export CSV</button>
+            <button class="btn btn-secondary" onclick="loadFarmers()">🔄 Refresh</button>
+          </div>
+        </div>
+
+        <div class="card" style="padding:0">
+          <div style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;background:#fbfdfb">
+            <input class="form-control" style="max-width:320px" id="farmer-search-input" placeholder="🔍 Search farmer by name, ID or crop..." oninput="filterFarmersTable()"/>
+            <span style="font-size:.8rem;color:var(--text-muted)" id="farmer-count-badge">Loading...</span>
+          </div>
+          <div class="table-wrap" id="farmers-table-wrap">
+            <div style="padding:30px;text-align:center;color:var(--text-muted)">Loading farmers…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== RUN IRRIGATION SECTION ==================== -->
+      <div class="section" id="section-run-irrigation">
+        <div class="card">
+          <div class="card-title">💧 Distribute Water via Need-Weighted Nash Bargaining</div>
+          <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:16px">
+            Enter available water supply from solar pump/reservoir. The algorithm solves the Nash bargaining problem to fairly allocate water while prioritizing critical crop water demands.
+          </p>
+
+          <div class="preset-card">
+            <div>
+              <strong>💡 Quick Realistic Presets:</strong>
+              <div style="font-size:.82rem;color:var(--text-muted)">Click to auto-fill water based on weather condition</div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-secondary btn-sm" onclick="setIrrWater(60000)">☀️ Sunny Day (60,000 L)</button>
+              <button class="btn btn-secondary btn-sm" onclick="setIrrWater(30000)">⛅ Scarcity Day (30,000 L)</button>
+              <button class="btn btn-secondary btn-sm" onclick="setIrrWater(1500)">🧪 Small Prototype (1,500 L)</button>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Available Water Supply (Litres) *</label>
+              <input class="form-control" id="irr-water" type="number" min="0" step="10" placeholder="e.g. 60000"/>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="runIrrigation()" id="btn-run-irr">💧 Calculate & Run Allocation</button>
+        </div>
+
+        <div id="irrigation-results" style="display:none">
+          <div class="stat-grid" id="irr-stats"></div>
+
+          <!-- Chart: Demand vs Allocated vs Delivered -->
+          <div class="card">
+            <div class="card-title">📊 Water Distribution Chart (Demand vs Allocated vs Delivered)</div>
+            <div class="chart-box" style="height:320px">
+              <canvas id="irrResultChart"></canvas>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">📋 Per-Farmer Allocation & Satisfaction</div>
+              <button class="btn btn-secondary btn-sm" onclick="exportIrrigationCSV()">📥 Export CSV</button>
+            </div>
+            <div class="table-wrap" id="irr-table"></div>
+          </div>
+
+          <div class="card" id="irr-schedule-card">
+            <div class="card-title">🕐 Hydraulic Valve Schedule (Main Pipe Sequencing)</div>
+            <div id="irr-schedule-content"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== COMPARE STRATEGIES SECTION ==================== -->
+      <div class="section" id="section-compare">
+        <div class="card">
+          <div class="card-title">⚖️ Compare 4 Irrigation Allocation Strategies</div>
+          <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:16px">
+            Evaluate our active method (<strong>Need-Weighted Nash Bargaining</strong>) against traditional benchmarks: <strong>FCFS</strong>, <strong>Equal Allocation</strong>, and <strong>Need-Proportional</strong> under identical sensor readings.
+          </p>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Available Water (Litres) *</label>
+              <input class="form-control" id="cmp-water" type="number" min="0" placeholder="e.g. 30000"/>
+            </div>
+          </div>
+          <button class="btn btn-sky" onclick="compareStrategies()">⚖️ Compare All Strategies</button>
+        </div>
+
+        <div id="compare-results" style="display:none">
+          <div class="card">
+            <div class="card-title">📊 Strategy Comparison Chart (Allocation & Fairness)</div>
+            <div class="chart-box" style="height:300px">
+              <canvas id="compareChart"></canvas>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">📥 Sensor Input & Crop Demands</div>
+            <div class="table-wrap" id="cmp-input-table"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">💧 Allocated Litres per Farmer</div>
+            <div class="table-wrap" id="cmp-alloc-table"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">📊 Benchmark Metrics & Performance Table</div>
+            <div class="table-wrap" id="cmp-perf-table"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== MULTI-EPOCH SIMULATION ==================== -->
+      <div class="section" id="section-simulation">
+        <div class="card">
+          <div class="card-title">🔬 Multi-Epoch Scarcity Stress Test</div>
+          <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:16px">
+            Simulates consecutive irrigation cycles. Transitions from a normal water regime to drought/scarcity to test resilience and fairness.
+          </p>
+          <div class="form-row-3">
+            <div class="form-group">
+              <label>Number of Epochs (1–100)</label>
+              <input class="form-control" id="sim-epochs" type="number" min="1" max="100" value="10"/>
+            </div>
+            <div class="form-group">
+              <label>Normal Water Supply (L/epoch)</label>
+              <input class="form-control" id="sim-normal" type="number" min="0" value="60000"/>
+            </div>
+            <div class="form-group">
+              <label>Scarcity Water Supply (L/epoch)</label>
+              <input class="form-control" id="sim-scarce" type="number" min="0" value="25000"/>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Scarcity Begins at Epoch</label>
+              <input class="form-control" id="sim-start" type="number" min="1" value="6"/>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="runSimulation()">🔬 Run Stress-Test Simulation</button>
+        </div>
+
+        <div id="sim-results" style="display:none">
+          <div class="card">
+            <div class="card-title">📈 Multi-Epoch Water Supply vs Demand vs Shortage Trend</div>
+            <div class="chart-box" style="height:320px">
+              <canvas id="simTrendChart"></canvas>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">📊 Farmer Summary Across All Epochs</div>
+            <div class="table-wrap" id="sim-summary-table"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">📋 Epoch-by-Epoch Log <span style="font-size:.8rem;font-weight:400;color:var(--text-muted)">(Click any epoch row to inspect per-farmer data)</span></div>
+            <div class="table-wrap" id="sim-epoch-table"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== CONFIGURATION SECTION ==================== -->
+      <div class="section" id="section-config">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">⚙️ Hydraulic & Agronomic Parameters</div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-secondary btn-sm" onclick="applyPreset('commercial')">🌾 Load 5HP Farm Preset</button>
+              <button class="btn btn-secondary btn-sm" onclick="applyPreset('prototype')">🧪 Load Demo Preset</button>
+            </div>
+          </div>
+          <div class="form-row" id="config-form">
+            <div style="text-align:center;padding:20px;color:var(--text-muted)">Loading config…</div>
+          </div>
+          <div style="margin-top:20px;display:flex;gap:12px">
+            <button class="btn btn-primary" onclick="saveConfig()">💾 Save Configuration</button>
+            <button class="btn btn-secondary" onclick="loadConfig()">↺ Reset</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== AUDIT LOG SECTION ==================== -->
+      <div class="section" id="section-audit">
+        <div class="card-header">
+          <h2 style="font-size:1.35rem;font-weight:800;color:var(--green-dark)">📋 System Audit & Access Log</h2>
+          <button class="btn btn-secondary" onclick="loadAudit()">🔄 Refresh Log</button>
+        </div>
+        <div class="card">
+          <pre id="audit-log" style="font-size:.82rem;line-height:1.7;white-space:pre-wrap;color:var(--text-muted);max-height:550px;overflow-y:auto;background:#fafdfa;padding:16px;border-radius:var(--radius-sm);border:1px solid var(--border)">Loading...</pre>
+        </div>
+      </div>
+
+      <!-- ==================== ADMIN CREDENTIALS SECTION ==================== -->
+      <div class="section" id="section-credentials">
+        <div class="card" style="max-width:480px">
+          <div class="card-title">🔑 Change Coordinator Credentials</div>
+          <div class="form-group pw-group">
+            <label>Current Admin Password *</label>
+            <input class="form-control" id="cred-current" type="password" placeholder="Enter current password"/>
+            <button type="button" class="pw-toggle" onclick="togglePw('cred-current')">👁️</button>
+          </div>
+          <div class="form-group">
+            <label>New Username (optional)</label>
+            <input class="form-control" id="cred-username" placeholder="Leave blank to keep current"/>
+          </div>
+          <div class="form-group pw-group">
+            <label>New Password (optional, min 10 chars)</label>
+            <input class="form-control" id="cred-password" type="password" placeholder="Min 10 characters"/>
+            <button type="button" class="pw-toggle" onclick="togglePw('cred-password')">👁️</button>
+          </div>
+          <div class="form-group pw-group" id="cred-confirm-grp" style="display:none">
+            <label>Confirm New Password</label>
+            <input class="form-control" id="cred-confirm" type="password" placeholder="Confirm new password"/>
+          </div>
+          <button class="btn btn-primary" onclick="changeCredentials()">🔑 Update Admin Credentials</button>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- ==================== FARMER SELF-SERVICE PORTAL ==================== -->
+<div class="page" id="farmer-page">
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <span class="logo">🌾</span> FarmFlow
+      <span class="tag">Farmer Self-Service Portal</span>
+    </div>
+    <div class="navbar-right">
+      <!-- Notification Bell -->
+      <button class="btn-notif" onclick="toggleNotifDrawer()" title="Notifications">
+        🔔
+        <span class="notif-badge" id="farmer-notif-count" style="display:none">0</span>
+      </button>
+      <div class="nav-chip">
+        <span>🧑‍🌾</span> <span id="farmer-username-display">Farmer</span>
+      </div>
+      <button class="btn-logout" onclick="logout()">Logout</button>
+    </div>
+  </nav>
+
+  <main class="main" style="max-width:1120px;margin:0 auto;width:100%">
+    <div id="farmer-data-container">
+      <div style="text-align:center;padding:50px;color:var(--text-muted)">Loading your field data…</div>
+    </div>
+  </main>
+</div>
+
+<!-- ==================== GLOBAL NOTIFICATION DRAWER ==================== -->
+<div class="notif-drawer" id="notif-drawer">
+  <div class="notif-header">
+    <div style="display:flex;align-items:center;gap:8px">
+      <span>🔔</span>
+      <span>System & Water Alerts</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <button class="btn btn-secondary btn-sm" onclick="markAllNotifsRead()" style="padding:3px 9px;font-size:.78rem">Mark all read</button>
+      <button class="btn btn-secondary btn-sm" onclick="toggleNotifDrawer()" style="padding:3px 7px;font-size:.78rem">✕</button>
+    </div>
+  </div>
+  <div class="notif-list" id="notif-list">
+    <div style="padding:24px;text-align:center;color:var(--text-muted);font-size:.85rem">No notifications yet</div>
+  </div>
+</div>
+
+<!-- 1. Dedicated Set/Reset Farmer Password Modal -->
+<div class="modal-overlay hidden" id="password-modal">
+  <div class="modal-box" style="max-width:440px">
+    <div class="modal-title">🔑 Set Farmer Password</div>
+    <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:16px">
+      Setting this password enables the farmer to log in to their personal field portal at the login screen.
+    </p>
+    <div class="form-group">
+      <label>Farmer</label>
+      <input class="form-control" id="pw-farmer-name" readonly style="background:#f4faf4;font-weight:700"/>
+    </div>
+    <div class="form-group pw-group">
+      <label>New Password (min 6 characters) *</label>
+      <input class="form-control" id="pw-new-input" type="password" placeholder="Enter new password (e.g. farm123)"/>
+      <button type="button" class="pw-toggle" onclick="togglePw('pw-new-input')">👁️</button>
+    </div>
+    <div style="font-size:.8rem;color:var(--text-muted);margin-bottom:14px" id="pw-char-count">
+      Must be at least 6 characters.
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('password-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitFarmerPassword()">💾 Save Password</button>
+    </div>
+  </div>
+</div>
+
+<!-- 2. Farmer Water Request Modal -->
+<div class="modal-overlay hidden" id="water-request-modal">
+  <div class="modal-box" style="max-width:480px">
+    <div class="modal-title">💧 Request Water from Edge Coordinator</div>
+    <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:16px">
+      Submit an irrigation request. The edge coordinator will receive an instant notification and schedule water delivery via Nash Bargaining.
+    </p>
+    <div class="form-group">
+      <label>Requested Water Volume (Litres) *</label>
+      <input class="form-control" id="req-litres-input" type="number" min="1" step="10"/>
+      <div style="font-size:.78rem;color:var(--text-muted);margin-top:4px" id="req-rec-hint">Recommended based on today's crop ETc</div>
+    </div>
+    <div class="form-group">
+      <label>Urgency Level *</label>
+      <select class="form-control" id="req-urgency-select">
+        <option value="normal">🟢 Normal Scheduled (Routine daily replenishment)</option>
+        <option value="high">🟡 High (Soil moisture below 50%)</option>
+        <option value="emergency">🚨 Critical Emergency (Severe wilting / heatwave stress)</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Preferred Time Window</label>
+      <select class="form-control" id="req-time-select">
+        <option value="asap">⚡ ASAP (Next available solar pump window)</option>
+        <option value="morning">🌅 Morning (10:00 AM – 12:00 PM)</option>
+        <option value="afternoon">☀️ Afternoon (1:00 PM – 3:30 PM)</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Field Observation / Notes (Optional)</label>
+      <textarea class="form-control" id="req-notes-input" rows="2" placeholder="e.g. Soil drying quickly near east corner; leaves starting to curl"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('water-request-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitWaterRequest()">🚀 Send Request to Coordinator</button>
+    </div>
+  </div>
+</div>
+
+<!-- 3. Coordinator Request Review Modal -->
+<div class="modal-overlay hidden" id="review-request-modal">
+  <div class="modal-box" style="max-width:480px">
+    <div class="modal-title" id="rev-modal-title">📋 Review Water Request</div>
+    <div id="rev-details-box" style="background:#f4faf4;padding:14px;border-radius:var(--radius-sm);margin-bottom:16px;font-size:.88rem"></div>
+    <div class="form-group">
+      <label>Coordinator Feedback / Instructions</label>
+      <textarea class="form-control" id="rev-feedback-input" rows="2" placeholder="e.g. Approved. Valve Valve-JAI101 will open at 11:30 AM during peak solar window."></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" onclick="submitRequestReview('declined')">❌ Decline</button>
+      <button class="btn btn-primary btn-sm" onclick="submitRequestReview('approved')">✅ Approve & Schedule</button>
+    </div>
+  </div>
+</div>
+
+<!-- 4. Register / Edit Farmer Modal -->
+<div class="modal-overlay hidden" id="farmer-modal">
+  <div class="modal-box">
+    <div class="modal-title" id="farmer-modal-title">🧑‍🌾 Register Farmer</div>
+    <div class="login-error" id="farmer-modal-error"></div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Farmer ID *</label>
+        <input class="form-control" id="fm-id" placeholder="e.g. JAI103"/>
+      </div>
+      <div class="form-group">
+        <label>Full Name *</label>
+        <input class="form-control" id="fm-name" placeholder="Farmer's name"/>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Crop *</label>
+      <select class="form-control" id="fm-crop"></select>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Farm Area (Acres) *</label>
+        <input class="form-control" id="fm-area" type="number" min="0.001" step="0.01" placeholder="e.g. 1.5"/>
+      </div>
+      <div class="form-group">
+        <label>Crop Age (Days) *</label>
+        <input class="form-control" id="fm-age" type="number" min="0" max="3650" placeholder="e.g. 35"/>
+      </div>
+    </div>
+    <div class="form-group pw-group">
+      <label>
+        Farmer Password
+        <span id="fm-pw-hint" style="color:var(--text-muted);font-weight:400">(min 6 characters — required for farmer login)</span>
+      </label>
+      <input class="form-control" id="fm-password" type="password" placeholder="Set password for farmer"/>
+      <button type="button" class="pw-toggle" onclick="togglePw('fm-password')">👁️</button>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('farmer-modal')">Cancel</button>
+      <button class="btn btn-primary" id="farmer-modal-btn" onclick="submitFarmer()">Register</button>
+    </div>
+  </div>
+</div>
+
+<!-- 5. Delete Farmer Modal -->
+<div class="modal-overlay hidden" id="delete-modal">
+  <div class="modal-box" style="max-width:400px">
+    <div class="modal-title" style="color:var(--red)">⚠️ Confirm Deletion</div>
+    <p id="delete-modal-msg" style="font-size:.9rem;color:var(--text-muted);margin-bottom:20px"></p>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('delete-modal')">Cancel</button>
+      <button class="btn btn-danger" id="delete-confirm-btn">🗑️ Delete Permanently</button>
+    </div>
+  </div>
+</div>
+
+<!-- 6. Printable Irrigation Slip Modal -->
+<div class="modal-overlay hidden" id="slip-modal">
+  <div class="modal-box" style="max-width:480px">
+    <div class="modal-title">📄 Official Irrigation Slip</div>
+    <div id="slip-content" style="border:1.5px dashed var(--border);padding:20px;border-radius:var(--radius-sm);background:#fcfdfc;margin-bottom:16px;font-family:monospace;font-size:.88rem"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary btn-sm" onclick="closeModal('slip-modal')">Close</button>
+      <button class="btn btn-primary btn-sm" onclick="window.print()">🖨️ Print Slip</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== CLIENT JAVASCRIPT ==================== -->
+<script>
+// Global State
+let currentRole = 'farmer';
+let editingFarmerId = null;
+let pwTargetFarmerId = null;
+let reviewingRequestId = null;
+let currentFarmerProfile = null;
+let crops = [];
+let farmersData = [];
+let configData = {};
+let lastIrrResult = null;
+let chartInstances = {};
+
+// --- Web Audio Chime ---
+function playNotificationChime() {
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+    osc.frequency.setValueAtTime(880, ctx.currentTime + 0.12); // A5
+    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.45);
+  } catch(e) {}
+}
+
+// --- API Helper ---
+async function api(url, method='GET', body=null) {
+  const opts = { method, headers: {'Content-Type':'application/json'} };
+  if (body) opts.body = JSON.stringify(body);
+  try {
+    const res = await fetch(url, opts);
+    return await res.json();
+  } catch(err) {
+    return { error: 'Network / server communication error' };
+  }
+}
+
+// --- Toast ---
+function toast(msg, isError=false) {
+  const t = document.getElementById('toast');
+  t.textContent = (isError ? '⚠️ ' : '✅ ') + msg;
+  t.className = 'toast show' + (isError ? ' error' : '');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// --- Toggle Password View ---
+function togglePw(inputId) {
+  const inp = document.getElementById(inputId);
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+
+// --- Role Tabs ---
+function switchRole(role) {
+  currentRole = role;
+  document.getElementById('tab-farmer').classList.toggle('active', role==='farmer');
+  document.getElementById('tab-admin').classList.toggle('active', role==='admin');
+  document.getElementById('farmer-login-form').style.display = role==='farmer' ? 'block' : 'none';
+  document.getElementById('admin-login-form').style.display = role==='admin' ? 'block' : 'none';
+}
+
+// --- Login / Auth ---
+async function farmerLogin() {
+  const id = document.getElementById('farmer-id-input').value.trim();
+  const pw = document.getElementById('farmer-pass-input').value;
+  const errEl = document.getElementById('farmer-error');
+  errEl.style.display = 'none';
+  if (!id || !pw) {
+    errEl.textContent = 'Please enter Farmer ID and password.';
+    errEl.style.display = 'block';
+    return;
+  }
+  const res = await api('/api/auth/farmer/login','POST',{farmerId:id,password:pw});
+  if (res.ok) {
+    showFarmer(res.name);
+  } else {
+    errEl.textContent = res.error || 'Login failed';
+    errEl.style.display = 'block';
+  }
+}
+
+async function adminLogin() {
+  const username = document.getElementById('admin-user-input').value.trim();
+  const password = document.getElementById('admin-pass-input').value;
+  const errEl = document.getElementById('admin-error');
+  errEl.style.display = 'none';
+
+  const isSetup = document.getElementById('admin-setup-note').style.display !== 'none';
+  if (isSetup) {
+    const confirm = document.getElementById('admin-confirm-input').value;
+    if (password !== confirm) {
+      errEl.textContent = 'Passwords do not match.';
+      errEl.style.display = 'block';
+      return;
+    }
+    if (password.length < 10) {
+      errEl.textContent = 'Password must be at least 10 characters.';
+      errEl.style.display = 'block';
+      return;
+    }
+    const setupRes = await api('/api/auth/admin/setup','POST',{username,password});
+    if (!setupRes.ok) {
+      errEl.textContent = setupRes.error || 'Setup failed';
+      errEl.style.display = 'block';
+      return;
+    }
+  }
+
+  const res = await api('/api/auth/admin/login','POST',{username,password});
+  if (res.ok) {
+    showAdmin(username);
+  } else {
+    errEl.textContent = res.error || 'Invalid credentials';
+    errEl.style.display = 'block';
+  }
+}
+
+async function logout() {
+  await api('/api/auth/logout','POST');
+  document.querySelectorAll('input').forEach(i => i.value = '');
+  showPage('login-page');
+}
+
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function showAdmin(username) {
+  currentRole = 'admin';
+  document.getElementById('admin-username-display').textContent = username;
+  showPage('admin-page');
+  loadDashboard();
+  loadConfig();
+  loadNotifications();
+}
+
+function showFarmer(name) {
+  currentRole = 'farmer';
+  document.getElementById('farmer-username-display').textContent = name;
+  showPage('farmer-page');
+  loadFarmerPortal();
+  loadNotifications();
+}
+
+// --- Navigation ---
+function showSection(name) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+  document.getElementById('section-'+name).classList.add('active');
+  const navItem = document.getElementById('nav-'+name);
+  if (navItem) navItem.classList.add('active');
+  if (name === 'dashboard') loadDashboard();
+  if (name === 'requests') loadRequests();
+  if (name === 'farmers') loadFarmers();
+  if (name === 'config') loadConfig();
+  if (name === 'audit') loadAudit();
+}
+
+// ==================== NOTIFICATIONS ====================
+async function loadNotifications() {
+  const data = await api('/api/notifications');
+  if (data.error) return;
+
+  const countEl = document.getElementById(currentRole === 'admin' ? 'admin-notif-count' : 'farmer-notif-count');
+  if (countEl) {
+    if (data.unreadCount > 0) {
+      countEl.textContent = data.unreadCount;
+      countEl.style.display = 'flex';
+    } else {
+      countEl.style.display = 'none';
+    }
+  }
+
+  const sideBadge = document.getElementById('side-req-badge');
+  if (sideBadge && currentRole === 'admin') {
+    if (data.unreadCount > 0) {
+      sideBadge.textContent = data.unreadCount;
+      sideBadge.style.display = 'inline-block';
+    } else {
+      sideBadge.style.display = 'none';
+    }
+  }
+
+  // Render list inside drawer
+  const listEl = document.getElementById('notif-list');
+  if (!listEl) return;
+
+  if (!data.notifications || !data.notifications.length) {
+    listEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-muted);font-size:.85rem">No notifications yet</div>';
+    return;
+  }
+
+  listEl.innerHTML = data.notifications.map(n => {
+    let icon = '🔔';
+    if (n.type === 'emergency') icon = '🚨';
+    else if (n.type === 'warning') icon = '⚠️';
+    else if (n.type === 'success') icon = '✅';
+    return `
+      <div class="notif-item ${!n.read?'unread':''}" onclick="handleNotifClick('${n.id}','${n.link}')">
+        <div class="notif-icon">${icon}</div>
+        <div>
+          <div>${esc(n.title)}</div>
+          <div style="font-size:.78rem;color:var(--text-muted);margin-top:2px">${esc(n.message)}</div>
+          <div class="notif-time">${new Date(n.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})} • ${new Date(n.timestamp).toLocaleDateString()}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function toggleNotifDrawer() {
+  const drawer = document.getElementById('notif-drawer');
+  drawer.classList.toggle('open');
+  if (drawer.classList.contains('open')) {
+    loadNotifications();
+  }
+}
+
+async function markAllNotifsRead() {
+  await api('/api/notifications/mark-read','POST',{});
+  loadNotifications();
+}
+
+async function handleNotifClick(notifId, link) {
+  await api('/api/notifications/mark-read','POST',{id:notifId});
+  loadNotifications();
+  if (link === '#requests' && currentRole === 'admin') {
+    showSection('requests');
+    document.getElementById('notif-drawer').classList.remove('open');
+  }
+}
+
+// Close drawer on click outside
+document.addEventListener('click', e => {
+  const drawer = document.getElementById('notif-drawer');
+  if (!drawer) return;
+  if (!drawer.contains(e.target) && !e.target.closest('.btn-notif')) {
+    drawer.classList.remove('open');
+  }
+});
+
+// ==================== SOLAR & BATTERY TELEMETRY ====================
+async function loadSolarTelemetry() {
+  const tel = await api('/api/solar-battery');
+  if (tel.error) return;
+  renderSolarTelemetry(tel);
+}
+
+function renderSolarTelemetry(tel) {
+  // Battery SoC & Fill
+  const socVal = document.getElementById('battery-soc-val');
+  if (socVal) socVal.textContent = tel.battery_soc_pct;
+  const fill = document.getElementById('battery-fill');
+  if (fill) {
+    fill.style.width = Math.min(100, Math.max(5, tel.battery_soc_pct)) + '%';
+    fill.style.background = tel.battery_soc_pct >= 60 ? '#2ecc71' : (tel.battery_soc_pct >= 25 ? '#f39c12' : '#e74c3c');
+  }
+
+  // Voltage & Subtitle
+  const vEl = document.getElementById('battery-voltage-val');
+  if (vEl) vEl.textContent = tel.battery_voltage + ' V';
+  const capSub = document.getElementById('battery-capacity-sub');
+  if (capSub) capSub.textContent = `${tel.battery_capacity_kwh} kWh LiFePO4 (${tel.battery_health_pct}% Health)`;
+
+  // PV Watts & Irradiance
+  const wEl = document.getElementById('solar-watts-val');
+  if (wEl) wEl.textContent = Number(tel.solar_generation_watts).toLocaleString() + ' W';
+  const irrSub = document.getElementById('solar-irradiance-sub');
+  if (irrSub) irrSub.textContent = `Irradiance: ${tel.solar_irradiance_wm2} W/m² (${(tel.panel_capacity_watts/1000).toFixed(1)} kW Array)`;
+
+  // Battery State & Runtime
+  const stateText = document.getElementById('battery-state-text');
+  if (stateText) {
+    const flow = tel.net_battery_flow_watts;
+    if (flow > 50) {
+      stateText.textContent = `⚡ Charging (+${(flow/1000).toFixed(2)} kW)${tel.runtime_hours ? ' ~'+tel.runtime_hours+'h to full' : ''}`;
+    } else if (flow < -50) {
+      stateText.textContent = `🔋 Discharging (-${(Math.abs(flow)/1000).toFixed(2)} kW)${tel.runtime_hours ? ' ~'+tel.runtime_hours+'h left' : ''}`;
+    } else {
+      stateText.textContent = `⚡ Idle / Balanced`;
+    }
+  }
+
+  // Interlock status
+  const lockEl = document.getElementById('solar-lock-status');
+  const runSub = document.getElementById('solar-runtime-sub');
+  if (lockEl) {
+    if (tel.pump_interlock_safe) {
+      lockEl.textContent = '✅ Power Safe';
+      lockEl.style.color = '#fff';
+      if (runSub) runSub.textContent = 'Ready for Solar Pump Run';
+    } else {
+      lockEl.textContent = '⛔ Low Power Lock';
+      lockEl.style.color = '#ffeb3b';
+      if (runSub) runSub.textContent = `Battery below 20% safe reserve`;
+    }
+  }
+
+  // Weather buttons active state
+  document.querySelectorAll('.weather-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.textContent.includes(tel.weather));
+  });
+}
+
+async function setWeather(weatherName) {
+  const res = await api('/api/solar-battery/weather','POST',{weather:weatherName});
+  if (res.ok) {
+    renderSolarTelemetry(res.telemetry);
+    toast(`Weather simulated: ${weatherName} (ET₀ adjusted to ${res.config.reference_et0_mm_day} mm/d)`);
+    if (document.getElementById('admin-page').classList.contains('active')) {
+      loadDashboard();
+    }
+    if (document.getElementById('farmer-page').classList.contains('active')) {
+      loadFarmerPortal();
+    }
+  } else {
+    toast(res.error || 'Failed to update weather', true);
+  }
+}
+
+// ==================== DASHBOARD ====================
+async function loadDashboard() {
+  const data = await api('/api/dashboard');
+  if (data.error) return;
+  farmersData = data.farmers || [];
+
+  // Render Solar Telemetry
+  if (data.solar_telemetry) {
+    renderSolarTelemetry(data.solar_telemetry);
+  }
+
+  // Metric Cards
+  document.getElementById('dashboard-stats').innerHTML = `
+    <div class="stat-card">
+      <div class="stat-label">Active Farmers</div>
+      <div class="stat-value">🧑‍🌾 ${data.active}</div>
+      <div class="stat-sub">${data.total_farmers} total registered</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Pending Requests</div>
+      <div class="stat-value" style="color:${data.pending_requests_count>0?'var(--amber)':'var(--green-dark)'}">📬 ${data.pending_requests_count}</div>
+      <div class="stat-sub">${data.pending_requests_count>0?'Action required':'All requests reviewed'}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Est. Daily Need</div>
+      <div class="stat-value">💧 ${Number(data.est_daily_need_litres).toLocaleString()}<span class="stat-unit">L/d</span></div>
+      <div class="stat-sub">Based on Penman ETc</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Solar Battery</div>
+      <div class="stat-value">🔋 ${data.solar_telemetry.battery_soc_pct}%</div>
+      <div class="stat-sub">${data.solar_telemetry.battery_voltage}V • ${data.solar_telemetry.weather}</div>
+    </div>
+  `;
+
+  // Render Crop Doughnut Chart
+  renderCropChart(data.crop_distribution || {});
+
+  // Render Satisfaction Chart from history
+  renderSatisfactionChart(data.recent_history || []);
+
+  // Table
+  if (!farmersData.length) {
+    document.getElementById('dashboard-farmer-list').innerHTML = '<p style="padding:20px;color:var(--text-muted);text-align:center">No active farmers registered. Go to "Farmers & Security" to register your first farmer.</p>';
+    return;
+  }
+
+  const rows = farmersData.map(f => {
+    let moistureBadge = '<span class="badge badge-green">Optimal</span>';
+    if (f.moisture_status === 'critical_deficit') moistureBadge = '<span class="badge badge-red">🚨 Critical Wilting Deficit</span>';
+    else if (f.moisture_status === 'moderate_deficit') moistureBadge = '<span class="badge badge-amber">🟡 Moisture Deficit</span>';
+
+    return `<tr>
+      <td><strong>${esc(f.id)}</strong></td>
+      <td>${esc(f.name)}</td>
+      <td><span class="badge badge-green">${esc(f.crop)}</span></td>
+      <td>${f.area_acres} acres</td>
+      <td>🌡️ ${f.last_soil_moisture!=null ? f.last_soil_moisture+'%' : 'N/A'} ${moistureBadge}</td>
+      <td><strong>${Number(f.daily_water_estimate).toLocaleString()} L/day</strong></td>
+      <td>${f.crop_coefficient}</td>
+      <td>${f.epochs_served}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('dashboard-farmer-list').innerHTML = `
+    <div class="table-wrap">
+      <table><thead><tr>
+        <th>ID</th><th>Farmer</th><th>Crop</th><th>Area</th><th>Soil Moisture & Health</th><th>Daily Need</th><th>Kc</th><th>Sessions</th>
+      </tr></thead><tbody>${rows}</tbody></table>
+    </div>`;
+}
+
+function renderCropChart(dist) {
+  const container = document.getElementById('crop-chart-box');
+  if (!container) return;
+  const labels = Object.keys(dist || {});
+  const data = Object.values(dist || {});
+  const colors = ['#28a745','#3498db','#f39c12','#e74c3c','#9b59b6','#1abc9c','#e67e22'];
+  const total = data.reduce((a,b)=>a+b, 0);
+
+  const badge = document.getElementById('crop-total-badge');
+  if (badge) badge.textContent = `${total} Plot${total===1?'':'s'} Active`;
+
+  if (!labels.length || total === 0) {
+    container.innerHTML = `
+      <div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text-muted);gap:10px">
+        <span style="font-size:2.5rem">🌾</span>
+        <div style="font-weight:600">No registered crop plots yet</div>
+        <div style="font-size:.82rem">Add farmers in Farmers & Security tab to see crop telemetry.</div>
+      </div>`;
+    return;
+  }
+
+  let chartRendered = false;
+  if (typeof Chart !== 'undefined') {
+    try {
+      let canvas = document.getElementById('cropChart');
+      if (!canvas) {
+        container.innerHTML = '<canvas id="cropChart"></canvas>';
+        canvas = document.getElementById('cropChart');
+      }
+      if (Chart.getChart) {
+        const existing = Chart.getChart(canvas);
+        if (existing) existing.destroy();
+      } else if (chartInstances.crop) {
+        chartInstances.crop.destroy();
+      }
+
+      chartInstances.crop = new Chart(canvas, {
+        type: 'doughnut',
+        data: {
+          labels,
+          datasets: [{
+            data,
+            backgroundColor: colors.slice(0, labels.length),
+            borderWidth: 2,
+            borderColor: '#ffffff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { boxWidth: 12, padding: 12, font: { family: 'Segoe UI', size: 11, weight: 600 } }
+            },
+            tooltip: {
+              callbacks: {
+                label: ctx => ` ${ctx.label}: ${ctx.raw} plot(s) (${Math.round((ctx.raw/total)*100)}%)`
+              }
+            }
+          },
+          cutout: '62%'
+        }
+      });
+      chartRendered = true;
+    } catch (err) {
+      console.warn('Chart.js cropChart creation failed, switching to native SVG chart:', err);
+    }
+  }
+
+  if (!chartRendered) {
+    renderSvgDonut(container, labels, data, colors, total);
+  }
+}
+
+function renderSvgDonut(container, labels, data, colors, total) {
+  const r = 58;
+  const c = 2 * Math.PI * r;
+  let offset = 0;
+  let circlesHtml = '';
+  let legendHtml = '<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:10px">';
+
+  labels.forEach((l, i) => {
+    const val = data[i];
+    const pct = (val / total);
+    const strokeDash = `${pct * c} ${c}`;
+    const strokeOffset = -offset;
+    offset += pct * c;
+    const color = colors[i % colors.length];
+
+    circlesHtml += `
+      <circle cx="90" cy="90" r="${r}" fill="none" stroke="${color}" stroke-width="26"
+        stroke-dasharray="${strokeDash}" stroke-dashoffset="${strokeOffset}"
+        style="transition:stroke-width .2s;cursor:pointer"
+        onmouseover="this.setAttribute('stroke-width','32')" onmouseout="this.setAttribute('stroke-width','26')">
+        <title>${esc(l)}: ${val} plot(s) (${Math.round(pct*100)}%)</title>
+      </circle>
+    `;
+
+    legendHtml += `
+      <div style="display:inline-flex;align-items:center;gap:6px;background:#f6fbf6;border:1px solid #e2ebe2;padding:4px 10px;border-radius:14px;font-size:0.78rem">
+        <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${color}"></span>
+        <strong>${esc(l)}</strong>: <span>${val} (${Math.round(pct*100)}%)</span>
+      </div>
+    `;
+  });
+  legendHtml += '</div>';
+
+  container.innerHTML = `
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%">
+      <div style="position:relative;width:180px;height:180px">
+        <svg viewBox="0 0 180 180" style="width:100%;height:100%;transform:rotate(-90deg);overflow:visible">
+          ${circlesHtml}
+        </svg>
+        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none">
+          <div style="font-size:1.6rem;font-weight:900;color:var(--text);line-height:1">${total}</div>
+          <div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px">Plots</div>
+        </div>
+      </div>
+      ${legendHtml}
+    </div>
+  `;
+}
+
+function renderSatisfactionChart(history) {
+  const container = document.getElementById('satisfaction-chart-box');
+  if (!container) return;
+  const runs = (history || []).slice(-5).reverse();
+  const labels = runs.map((r, i) => `Cycle #${runs.length - i}`);
+  const satisfaction = runs.map(r => Number(r.avg_satisfaction != null ? r.avg_satisfaction : 0));
+  const fairness = runs.map(r => +((r.allocation_fairness != null ? r.allocation_fairness : 0.8) * 100).toFixed(1));
+
+  const badge = document.getElementById('perf-run-badge');
+  if (badge) badge.textContent = `${runs.length} Cycles Evaluated`;
+
+  if (!runs.length) {
+    container.innerHTML = `
+      <div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text-muted);gap:10px">
+        <span style="font-size:2.5rem">💧</span>
+        <div style="font-weight:600">No irrigation cycles recorded yet</div>
+        <div style="font-size:.82rem">Run your first Nash Bargaining cycle in "Distribute Water" to evaluate satisfaction metrics.</div>
+      </div>`;
+    return;
+  }
+
+  let chartRendered = false;
+  if (typeof Chart !== 'undefined') {
+    try {
+      let canvas = document.getElementById('satisfactionChart');
+      if (!canvas) {
+        container.innerHTML = '<canvas id="satisfactionChart"></canvas>';
+        canvas = document.getElementById('satisfactionChart');
+      }
+      if (Chart.getChart) {
+        const existing = Chart.getChart(canvas);
+        if (existing) existing.destroy();
+      } else if (chartInstances.satisfaction) {
+        chartInstances.satisfaction.destroy();
+      }
+
+      chartInstances.satisfaction = new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'Avg Satisfaction (%)',
+              data: satisfaction,
+              backgroundColor: '#28a745',
+              borderRadius: 6
+            },
+            {
+              label: 'Fairness Index (%)',
+              data: fairness,
+              backgroundColor: '#3498db',
+              borderRadius: 6
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              min: 0,
+              max: 100,
+              ticks: { callback: v => v + '%' },
+              grid: { color: 'rgba(0,0,0,0.06)' }
+            },
+            x: { grid: { display: false } }
+          },
+          plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 12, padding: 12, font: { size: 11, weight: 600 } } }
+          }
+        }
+      });
+      chartRendered = true;
+    } catch (err) {
+      console.warn('Chart.js satisfactionChart creation failed, switching to native SVG chart:', err);
+    }
+  }
+
+  if (!chartRendered) {
+    renderSvgBarChart(container, labels, satisfaction, fairness);
+  }
+}
+
+function renderSvgBarChart(container, labels, satisfaction, fairness) {
+  const chartHeight = 150;
+  let barsHtml = '';
+
+  labels.forEach((label, i) => {
+    const sat = Math.min(100, Math.max(0, satisfaction[i] || 0));
+    const fair = Math.min(100, Math.max(0, fairness[i] || 0));
+    const satHeight = Math.max(6, Math.round((sat / 100) * chartHeight));
+    const fairHeight = Math.max(6, Math.round((fair / 100) * chartHeight));
+
+    barsHtml += `
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;height:100%;justify-content:flex-end">
+        <div style="display:flex;align-items:flex-end;gap:5px;height:${chartHeight}px;width:100%;justify-content:center">
+          <div style="width:22px;height:${satHeight}px;background:linear-gradient(180deg,#2ecc71,#28a745);border-radius:4px 4px 0 0;position:relative;cursor:pointer" title="${label} - Avg Satisfaction: ${sat}%">
+            <span style="position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:0.68rem;font-weight:700;color:#28a745">${Math.round(sat)}%</span>
+          </div>
+          <div style="width:22px;height:${fairHeight}px;background:linear-gradient(180deg,#38bdf8,#0284c7);border-radius:4px 4px 0 0;position:relative;cursor:pointer" title="${label} - Fairness: ${fair}%">
+            <span style="position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:0.68rem;font-weight:700;color:#0284c7">${Math.round(fair)}%</span>
+          </div>
+        </div>
+        <div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);margin-top:8px">${label}</div>
+      </div>
+    `;
+  });
+
+  container.innerHTML = `
+    <div style="display:flex;flex-direction:column;height:100%;justify-content:space-between;padding:10px 4px">
+      <div style="flex:1;display:flex;align-items:flex-end;position:relative;border-bottom:2px solid #cbd5e1;padding-bottom:2px">
+        <div style="position:absolute;bottom:${chartHeight/2}px;left:0;right:0;border-top:1px dashed #e2e8f0;pointer-events:none">
+          <span style="position:absolute;right:0;top:-12px;font-size:0.68rem;color:#94a3b8">50%</span>
+        </div>
+        <div style="position:absolute;bottom:${chartHeight}px;left:0;right:0;border-top:1px solid #f1f5f9;pointer-events:none">
+          <span style="position:absolute;right:0;top:-12px;font-size:0.68rem;color:#94a3b8">100%</span>
+        </div>
+        ${barsHtml}
+      </div>
+      <div style="display:flex;justify-content:center;gap:16px;margin-top:12px;font-size:0.78rem">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="width:12px;height:12px;background:#28a745;border-radius:3px;display:inline-block"></span>
+          <span style="font-weight:600">Avg Satisfaction (%)</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="width:12px;height:12px;background:#0284c7;border-radius:3px;display:inline-block"></span>
+          <span style="font-weight:600">Fairness Index (%)</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ==================== WATER REQUESTS (ADMIN) ====================
+async function loadRequests(statusFilter = 'all') {
+  const requests = await api(`/api/requests?status=${statusFilter}`);
+  renderRequestsTable(Array.isArray(requests) ? requests : []);
+}
+
+function renderRequestsTable(list) {
+  const wrap = document.getElementById('requests-table-wrap');
+  if (!wrap) return;
+
+  if (!list.length) {
+    wrap.innerHTML = '<div style="padding:30px;text-align:center;color:var(--text-muted)">No water requests found for this filter.</div>';
+    return;
+  }
+
+  const rows = list.map(r => {
+    let urgencyBadge = '<span class="badge badge-green">Normal</span>';
+    if (r.urgency === 'emergency') urgencyBadge = '<span class="badge badge-red">🚨 Critical Drought</span>';
+    else if (r.urgency === 'high') urgencyBadge = '<span class="badge badge-amber">⚠️ High Deficit</span>';
+
+    let statusBadge = '<span class="badge badge-amber">🕒 Pending</span>';
+    if (r.status === 'approved') statusBadge = '<span class="badge badge-green">✅ Approved</span>';
+    else if (r.status === 'declined') statusBadge = '<span class="badge badge-red">❌ Declined</span>';
+    else if (r.status === 'fulfilled') statusBadge = '<span class="badge badge-sky">💧 Fulfilled</span>';
+
+    return `<tr>
+      <td><strong>${esc(r.id)}</strong></td>
+      <td><strong>${esc(r.farmer_name)}</strong> (${esc(r.farmer_id)})</td>
+      <td>${esc(r.crop)} (${r.area_acres} ac)</td>
+      <td>🌡️ ${r.soil_moisture!=null ? r.soil_moisture+'%' : 'N/A'}</td>
+      <td><strong>${Number(r.requested_litres).toLocaleString()} L</strong> <span style="font-size:.75rem;color:var(--text-muted)">(Demand: ${Number(r.daily_demand).toLocaleString()} L)</span></td>
+      <td>${urgencyBadge}</td>
+      <td>${statusBadge}</td>
+      <td>
+        ${r.status === 'pending' ? `
+          <button class="btn btn-primary btn-sm" onclick="openReviewModal('${esc(r.id)}')">Review</button>
+          <button class="btn btn-sky btn-sm" onclick="fulfillWithNash('${esc(r.id)}')">⚡ 1-Click Fulfill</button>
+        ` : `
+          <span style="font-size:.78rem;color:var(--text-muted)">${r.admin_feedback ? esc(r.admin_feedback) : 'Completed'}</span>
+        `}
+      </td>
+    </tr>`;
+  }).join('');
+
+  wrap.innerHTML = `
+    <table><thead><tr>
+      <th>Request ID</th><th>Farmer</th><th>Crop & Area</th><th>Soil Moisture</th>
+      <th>Requested Water</th><th>Urgency</th><th>Status</th><th>Actions</th>
+    </tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function openReviewModal(reqId) {
+  reviewingRequestId = reqId;
+  const reqItem = REQUESTS_CACHE ? REQUESTS_CACHE.find(r => r.id === reqId) : null;
+  document.getElementById('rev-modal-title').textContent = `Review Request: ${reqId}`;
+  document.getElementById('rev-details-box').innerHTML = `
+    <div><strong>Request ID:</strong> ${reqId}</div>
+    <div style="margin-top:4px">Assign delivery time and notes for the farmer.</div>
+  `;
+  document.getElementById('rev-feedback-input').value = 'Approved for next solar irrigation window. Valve scheduled.';
+  document.getElementById('review-request-modal').classList.remove('hidden');
+}
+
+let REQUESTS_CACHE = [];
+async function submitRequestReview(decision) {
+  const feedback = document.getElementById('rev-feedback-input').value.trim();
+  const res = await api(`/api/requests/${reviewingRequestId}/review`,'PATCH',{
+    status: decision,
+    admin_feedback: feedback
+  });
+  closeModal('review-request-modal');
+  if (res.ok) {
+    toast(`Request ${reviewingRequestId} marked as ${decision}`);
+    loadRequests();
+    loadDashboard();
+    loadNotifications();
+  } else {
+    alert(res.error || 'Failed to update request');
+  }
+}
+
+async function fulfillWithNash(reqId) {
+  if (!confirm(`Execute 1-Click Nash Bargaining Allocation now to fulfill request ${reqId}?`)) return;
+  const res = await api(`/api/requests/${reqId}/fulfill-nash`,'POST',{});
+  if (res.ok) {
+    playNotificationChime();
+    toast(`Water request ${reqId} fulfilled successfully via Nash Bargaining!`);
+    loadRequests();
+    loadDashboard();
+  } else {
+    alert(res.error || 'Failed to fulfill request');
+  }
+}
+
+// ==================== FARMERS & PASSWORDS ====================
+async function loadFarmers() {
+  const farmers = await api('/api/farmers');
+  farmersData = Array.isArray(farmers) ? farmers : [];
+  renderFarmersTable(farmersData);
+}
+
+function renderFarmersTable(list) {
+  document.getElementById('farmer-count-badge').textContent = `Showing ${list.length} farmers`;
+  if (!list.length) {
+    document.getElementById('farmers-table-wrap').innerHTML = '<div style="padding:30px;text-align:center;color:var(--text-muted)">No farmers found. Click "Register New Farmer" above.</div>';
+    return;
+  }
+
+  const rows = list.map(f => `<tr>
+    <td><strong>${esc(f.id)}</strong></td>
+    <td>${esc(f.name)}</td>
+    <td><span class="badge badge-green">${esc(f.crop)}</span></td>
+    <td>${f.area_acres} ac</td>
+    <td>${f.crop_age_days} d</td>
+    <td>${Number(f.daily_water_estimate).toLocaleString()} L/d</td>
+    <td>
+      <span class="badge ${f.status==='active'?'badge-green':'badge-red'}">
+        ${f.status==='active'?'● Active':'● Inactive'}
+      </span>
+    </td>
+    <td>
+      ${f.has_password
+        ? '<span class="badge badge-green" title="Farmer can log in with password">🔑 Set</span>'
+        : '<span class="badge badge-amber" title="No password set yet">⚠️ No Password</span>'
+      }
+    </td>
+    <td style="white-space:nowrap">
+      <button class="btn btn-warning btn-sm" onclick="openPasswordModal('${esc(f.id)}','${esc(f.name)}')">🔑 Set Password</button>
+      <button class="btn btn-secondary btn-sm" onclick="openEditFarmer('${esc(f.id)}')">✏️ Edit</button>
+      ${f.status==='active'
+        ? `<button class="btn btn-secondary btn-sm" onclick="toggleActive('${esc(f.id)}','deactivate')">⛔</button>`
+        : `<button class="btn btn-sky btn-sm" onclick="toggleActive('${esc(f.id)}','reactivate')">✅</button>`
+      }
+      <button class="btn btn-danger btn-sm" onclick="confirmDeleteFarmer('${esc(f.id)}','${esc(f.name)}')">🗑️</button>
+    </td>
+  </tr>`).join('');
+
+  document.getElementById('farmers-table-wrap').innerHTML = `
+    <table><thead><tr>
+      <th>ID</th><th>Farmer Name</th><th>Crop</th><th>Area</th><th>Age</th>
+      <th>Daily Need</th><th>Status</th><th>Login Password</th><th>Actions</th>
+    </tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function filterFarmersTable() {
+  const q = document.getElementById('farmer-search-input').value.toLowerCase();
+  const filtered = farmersData.filter(f =>
+    f.name.toLowerCase().includes(q) ||
+    f.id.toLowerCase().includes(q) ||
+    f.crop.toLowerCase().includes(q)
+  );
+  renderFarmersTable(filtered);
+}
+
+// --- Password Modal (Dedicated) ---
+function openPasswordModal(id, name) {
+  pwTargetFarmerId = id;
+  document.getElementById('pw-farmer-name').value = `${name} (${id})`;
+  document.getElementById('pw-new-input').value = '';
+  document.getElementById('password-modal').classList.remove('hidden');
+}
+
+async function submitFarmerPassword() {
+  const pw = document.getElementById('pw-new-input').value.trim();
+  if (pw.length < 6) {
+    alert('Password must be at least 6 characters long.');
+    return;
+  }
+  const res = await api(`/api/farmers/${pwTargetFarmerId}/password`,'POST',{password:pw});
+  if (res.ok) {
+    closeModal('password-modal');
+    toast(`Password for farmer ${pwTargetFarmerId} updated successfully!`);
+    loadFarmers();
+  } else {
+    alert(res.error || 'Failed to update password');
+  }
+}
+
+// --- Register / Edit Modal ---
+function openAddFarmer() {
+  editingFarmerId = null;
+  document.getElementById('farmer-modal-title').textContent = '🧑‍🌾 Register New Farmer';
+  document.getElementById('farmer-modal-btn').textContent = 'Register Farmer';
+  document.getElementById('fm-id').disabled = false;
+  ['fm-id','fm-name','fm-area','fm-age','fm-password'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('fm-pw-hint').textContent = '(min 6 characters — required for farmer login)';
+  document.getElementById('farmer-modal-error').style.display = 'none';
+  populateCropDropdown();
+  document.getElementById('farmer-modal').classList.remove('hidden');
+}
+
+function openEditFarmer(id) {
+  const f = farmersData.find(x => x.id === id);
+  if (!f) return;
+  editingFarmerId = id;
+  document.getElementById('farmer-modal-title').textContent = `✏️ Edit Farmer Details: ${f.name} (${f.id})`;
+  document.getElementById('farmer-modal-btn').textContent = 'Save Changes';
+  document.getElementById('fm-id').value = f.id;
+  document.getElementById('fm-id').disabled = true;
+  document.getElementById('fm-name').value = f.name;
+  populateCropDropdown(f.crop);
+  document.getElementById('fm-area').value = f.area_acres;
+  document.getElementById('fm-age').value = f.crop_age_days;
+  document.getElementById('fm-password').value = '';
+  document.getElementById('fm-pw-hint').textContent = f.has_password ? '(Password is already set. Enter a new one to change, or leave blank to keep current)' : '(No password set yet. Enter one to enable farmer login)';
+  document.getElementById('farmer-modal-error').style.display = 'none';
+  document.getElementById('farmer-modal').classList.remove('hidden');
+}
+
+function populateCropDropdown(selectedCrop='') {
+  const sel = document.getElementById('fm-crop');
+  sel.innerHTML = crops.map(c => `
+    <option value="${esc(c.name)}" ${c.name===selectedCrop?'selected':''}>${esc(c.name)} (${c.duration_days} days)</option>
+  `).join('');
+}
+
+async function submitFarmer() {
+  const errEl = document.getElementById('farmer-modal-error');
+  errEl.style.display = 'none';
+  const body = {
+    id: document.getElementById('fm-id').value.trim(),
+    name: document.getElementById('fm-name').value.trim(),
+    crop: document.getElementById('fm-crop').value,
+    area_acres: document.getElementById('fm-area').value,
+    crop_age_days: document.getElementById('fm-age').value,
+    password: document.getElementById('fm-password').value || undefined
+  };
+
+  if (!body.name || !body.area_acres || body.crop_age_days === '') {
+    errEl.textContent = 'Please fill all required fields.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  let res;
+  if (editingFarmerId) {
+    res = await api(`/api/farmers/${editingFarmerId}`,'PUT',body);
+  } else {
+    res = await api('/api/farmers','POST',body);
+  }
+
+  if (res.ok) {
+    closeModal('farmer-modal');
+    toast(editingFarmerId ? 'Farmer details updated successfully!' : 'New farmer registered successfully!');
+    loadFarmers();
+  } else {
+    errEl.textContent = res.error || 'Failed to save farmer';
+    errEl.style.display = 'block';
+  }
+}
+
+async function toggleActive(id, action) {
+  const res = await api(`/api/farmers/${id}/${action}`,'PATCH');
+  if (res.ok) {
+    toast(`Farmer ${action==='deactivate'?'deactivated':'reactivated'}`);
+    loadFarmers();
+  }
+}
+
+function confirmDeleteFarmer(id, name) {
+  document.getElementById('delete-modal-msg').textContent = `Are you sure you want to permanently delete farmer "${name}" (${id})? This will erase all irrigation records for this farmer.`;
+  document.getElementById('delete-confirm-btn').onclick = async () => {
+    const res = await api(`/api/farmers/${id}`,'DELETE');
+    closeModal('delete-modal');
+    if (res.ok) {
+      toast(`Farmer ${name} deleted.`);
+      loadFarmers();
+    }
+  };
+  document.getElementById('delete-modal').classList.remove('hidden');
+}
+
+// ==================== RUN IRRIGATION ====================
+function setIrrWater(val) {
+  document.getElementById('irr-water').value = val;
+}
+
+async function runIrrigation() {
+  const water = parseFloat(document.getElementById('irr-water').value);
+  if (isNaN(water) || water < 0) { alert('Enter a valid water amount'); return; }
+  const btn = document.getElementById('btn-run-irr');
+  btn.disabled = true; btn.innerHTML = '💧 Calculating Allocation…';
+
+  const res = await api('/api/irrigation/run','POST',{water});
+  btn.disabled = false; btn.innerHTML = '💧 Calculate & Run Allocation';
+
+  if (res.error) {
+    if (res.interlock_triggered) {
+      if (confirm(`${res.error}\n\nDo you want to BYPASS the solar battery lock and force the pump to run?`)) {
+        btn.disabled = true; btn.innerHTML = '⚠️ Bypassing & Running…';
+        const bypassRes = await api('/api/irrigation/run','POST',{water, bypass_solar_lock: true});
+        btn.disabled = false; btn.innerHTML = '💧 Calculate & Run Allocation';
+        if (bypassRes.error) { alert(bypassRes.error); return; }
+        renderIrrigationResults(bypassRes);
+        return;
+      }
+    } else {
+      alert(res.error);
+    }
+    return;
+  }
+
+  renderIrrigationResults(res);
+}
+
+function renderIrrigationResults(res) {
+  lastIrrResult = res;
+  document.getElementById('irrigation-results').style.display = 'block';
+
+  document.getElementById('irr-stats').innerHTML = `
+    <div class="stat-card">
+      <div class="stat-label">Available Supply</div>
+      <div class="stat-value">💧 ${Number(res.water_available).toLocaleString()}<span class="stat-unit">L</span></div>
+      <div class="stat-sub">${res.water_available>=res.total_demand?'100% Demand Met':'Scarcity Mode Active'}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total Allocated</div>
+      <div class="stat-value">✅ ${Number(res.total_allocated).toLocaleString()}<span class="stat-unit">L</span></div>
+      <div class="stat-sub">of ${Number(res.total_demand).toLocaleString()} L demand</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Avg Satisfaction</div>
+      <div class="stat-value">😊 ${res.metrics.average_satisfaction}%</div>
+      <div class="stat-sub">Fairness Index: ${res.metrics.allocation_fairness}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Unmet Demand</div>
+      <div class="stat-value">⚠️ ${Number(res.metrics.unmet).toLocaleString()}<span class="stat-unit">L</span></div>
+      <div class="stat-sub">${((res.metrics.unmet/Math.max(1,res.total_demand))*100).toFixed(1)}% deficit</div>
+    </div>
+  `;
+
+  // Render Bar Chart
+  renderIrrResultChart(res.rows);
+
+  // Per-farmer table
+  const rows = res.rows.map(r => `<tr>
+    <td><strong>${esc(r.farmer)}</strong> (${esc(r.farmerId)})</td>
+    <td><span class="badge badge-green">${esc(r.crop)}</span></td>
+    <td>🌡️ ${r.soil_moisture}%</td>
+    <td>${Number(r.demand).toLocaleString()} L</td>
+    <td><strong>${Number(r.allocated).toLocaleString()} L</strong></td>
+    <td>${Number(r.delivered).toLocaleString()} L</td>
+    <td>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-weight:700">${r.satisfied_pct}%</span>
+        <div class="progress-wrap" style="flex:1">
+          <div class="progress-fill" style="width:${Math.min(100,r.satisfied_pct)}%;background:${r.satisfied_pct>=90?'var(--green)':r.satisfied_pct>=50?'var(--amber)':'var(--red)'}"></div>
+        </div>
+      </div>
+    </td>
+  </tr>`).join('');
+
+  document.getElementById('irr-table').innerHTML = `
+    <table><thead><tr>
+      <th>Farmer</th><th>Crop</th><th>Soil Moisture</th>
+      <th>Demand (ETc)</th><th>Allocated</th><th>Delivered (Sim.)</th><th>Satisfaction</th>
+    </tr></thead><tbody>${rows}</tbody></table>`;
+
+  // Schedule
+  if (res.schedule && !res.schedule.error) {
+    const s = res.schedule;
+    const srows = s.rows.map(r => `<tr>
+      <td><strong>${esc(r.Farmer)}</strong></td>
+      <td>🚰 ${r.Valve}</td>
+      <td>${Number(r['Allocated (L)']).toLocaleString()} L</td>
+      <td>${r['Flow (L/min)']} L/min</td>
+      <td>${r['Start (min)']} min</td>
+      <td>${r['End (min)']} min</td>
+      <td style="width:180px">
+        <div class="gantt-bar" style="margin-left:${(r['Start (min)']/Math.max(1,s.total_duration))*80}%;width:${Math.max(20,(r['Allocated (L)']/Math.max(1,res.total_allocated))*100)}%">
+          ${r['Start (min)']}m–${r['End (min)']}m
+        </div>
+      </td>
+    </tr>`).join('');
+
+    document.getElementById('irr-schedule-content').innerHTML = `
+      <div class="table-wrap">
+        <table><thead><tr>
+          <th>Farmer</th><th>Valve</th><th>Allocated</th><th>Flow Rate</th><th>Start</th><th>End</th><th>Timeline</th>
+        </tr></thead><tbody>${srows}</tbody></table>
+      </div>
+      <div style="margin-top:14px;padding:12px 16px;background:#f4faf4;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+        <span>Total Hydraulic Duration: <strong>${s.total_duration.toFixed(1)} minutes</strong> (~${(s.total_duration/60).toFixed(1)} hrs)</span>
+        <span class="badge ${s.fits_window?'badge-green':'badge-red'}" style="font-size:.85rem;padding:6px 14px">
+          ${s.fits_window?'✅ Fits Solar Window':'❌ Exceeds Solar Window — Increase pipe flow or reduce water'}
+        </span>
+      </div>`;
+  }
+
+  // Refresh solar telemetry card
+  loadDashboard();
+}
+
+function renderIrrResultChart(rows) {
+  const ctx = document.getElementById('irrResultChart');
+  if (!ctx) return;
+  if (chartInstances.irrResult) chartInstances.irrResult.destroy();
+  const labels = rows.map(r => r.farmer);
+  const demand = rows.map(r => r.demand);
+  const allocated = rows.map(r => r.allocated);
+  const delivered = rows.map(r => r.delivered);
+
+  chartInstances.irrResult = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Estimated Demand (L)', data: demand, backgroundColor: '#3498db' },
+        { label: 'Allocated (Nash Bargaining) (L)', data: allocated, backgroundColor: '#28a745' },
+        { label: 'Simulated Flow Delivered (L)', data: delivered, backgroundColor: '#f39c12' }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: { y: { ticks: { callback: v => Number(v).toLocaleString() + ' L' } } },
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 14 } } }
+    }
+  });
+}
+
+// ==================== COMPARE STRATEGIES ====================
+async function compareStrategies() {
+  const water = parseFloat(document.getElementById('cmp-water').value);
+  if (isNaN(water) || water < 0) { alert('Enter a valid water amount'); return; }
+  const res = await api('/api/irrigation/compare','POST',{water});
+  if (res.error) { alert(res.error); return; }
+  document.getElementById('compare-results').style.display = 'block';
+
+  renderCompareChart(res.performance);
+
+  // Input table
+  const irows = res.input_data.map(r => `<tr>
+    <td><strong>${esc(r.farmer)}</strong></td><td><span class="badge badge-green">${esc(r.crop)}</span></td>
+    <td>${r.area_acres} ac</td><td>${r.soil_moisture}%</td><td><strong>${Number(r.demand).toLocaleString()} L</strong></td>
+  </tr>`).join('');
+  document.getElementById('cmp-input-table').innerHTML = `
+    <table><thead><tr><th>Farmer</th><th>Crop</th><th>Area</th><th>Soil Moisture</th><th>Demand</th></tr></thead>
+    <tbody>${irows}</tbody></table>`;
+
+  // Allocation table
+  const strats = ['FCFS','Equal Allocation','Need-Proportional','Need-Weighted Nash Bargaining'];
+  const arows = res.allocation_data.map(r => `<tr>
+    <td><strong>${esc(r.farmer)}</strong></td>
+    ${strats.map(s => `<td>${Number(r[s]).toLocaleString()} L</td>`).join('')}
+  </tr>`).join('');
+  document.getElementById('cmp-alloc-table').innerHTML = `
+    <table><thead><tr>
+      <th>Farmer</th>
+      <th>FCFS</th><th>Equal Allocation</th><th>Need-Proportional</th>
+      <th style="background:#145224;color:#ffeb3b">★ Nash Bargaining [OUR METHOD]</th>
+    </tr></thead><tbody>${arows}</tbody></table>`;
+
+  // Performance table
+  const prows = res.performance.map(p => `<tr style="${p.role==='OUR METHOD'?'background:#f9fdf9;font-weight:700':''}">
+    <td>${p.role==='OUR METHOD'?'★ ':''} ${esc(p.strategy)}</td>
+    <td><span class="badge ${p.role==='OUR METHOD'?'badge-amber':'badge-sky'}">${p.role}</span></td>
+    <td>${Number(p.allocated).toLocaleString()} L</td>
+    <td>${Number(p.unmet).toLocaleString()} L</td>
+    <td>${p.allocation_fairness}</td>
+    <td>${p.satisfaction_fairness}</td>
+    <td><span style="color:${p.avg_satisfaction>=80?'var(--green)':'var(--amber)'}">${p.avg_satisfaction}%</span></td>
+  </tr>`).join('');
+
+  document.getElementById('cmp-perf-table').innerHTML = `
+    <table><thead><tr>
+      <th>Strategy</th><th>Role</th><th>Allocated</th><th>Unmet Demand</th>
+      <th>Allocation Fairness</th><th>Satisfaction Fairness</th><th>Avg Satisfaction</th>
+    </tr></thead><tbody>${prows}</tbody></table>`;
+}
+
+function renderCompareChart(perf) {
+  const ctx = document.getElementById('compareChart');
+  if (!ctx) return;
+  if (chartInstances.compare) chartInstances.compare.destroy();
+  const labels = perf.map(p => p.strategy);
+  const satisfaction = perf.map(p => p.avg_satisfaction);
+  const fairness = perf.map(p => +(p.satisfaction_fairness * 100).toFixed(1));
+
+  chartInstances.compare = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Avg Satisfaction (%)', data: satisfaction, backgroundColor: ['#95a5a6','#95a5a6','#95a5a6','#28a745'] },
+        { label: 'Satisfaction Fairness Index (%)', data: fairness, backgroundColor: ['#bdc3c7','#bdc3c7','#bdc3c7','#3498db'] }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: { y: { min: 0, max: 100, ticks: { callback: v => v + '%' } } },
+      plugins: { legend: { position: 'bottom' } }
+    }
+  });
+}
+
+// ==================== MULTI-EPOCH SIMULATION ====================
+async function runSimulation() {
+  const body = {
+    epochs: document.getElementById('sim-epochs').value,
+    normal_water: document.getElementById('sim-normal').value,
+    scarce_water: document.getElementById('sim-scarce').value,
+    scarcity_start: document.getElementById('sim-start').value
+  };
+  const res = await api('/api/irrigation/simulation','POST',body);
+  if (res.error) { alert(res.error); return; }
+  document.getElementById('sim-results').style.display = 'block';
+
+  renderSimTrendChart(res.epochs);
+
+  const srows = res.summary.map(s => `<tr>
+    <td><strong>${esc(s.id)}</strong></td><td>${esc(s.name)}</td><td><span class="badge badge-green">${esc(s.crop)}</span></td>
+    <td>${Number(s.total_demand).toLocaleString()} L</td>
+    <td>${Number(s.total_allocated).toLocaleString()} L</td>
+    <td>${Number(s.total_shortage).toLocaleString()} L</td>
+    <td><strong>${s.demand_met_pct}%</strong></td>
+  </tr>`).join('');
+  document.getElementById('sim-summary-table').innerHTML = `
+    <table><thead><tr>
+      <th>ID</th><th>Farmer</th><th>Crop</th>
+      <th>Total Demand</th><th>Total Allocated</th><th>Total Shortage</th><th>Demand Met</th>
+    </tr></thead><tbody>${srows}</tbody></table>`;
+
+  let html = `<table>
+    <thead><tr><th>Epoch #</th><th>Water Regime</th><th>Supply Available</th><th>Demand</th><th>Allocated</th><th>Shortage</th><th>Avg Sat.</th></tr></thead>
+    <tbody>`;
+  res.epochs.forEach((ep, idx) => {
+    const did = `sim-ep-${idx}`;
+    html += `<tr style="cursor:pointer" onclick="toggleEpochRow('${did}')">
+      <td><strong>Epoch #${ep.epoch}</strong> ▶</td>
+      <td><span class="badge ${ep.regime==='Normal'?'badge-green':'badge-red'}">${ep.regime}</span></td>
+      <td>${Number(ep.supply).toLocaleString()} L</td>
+      <td>${Number(ep.total_demand).toLocaleString()} L</td>
+      <td>${Number(ep.total_allocated).toLocaleString()} L</td>
+      <td>${Number(ep.shortage).toLocaleString()} L</td>
+      <td><strong>${ep.avg_satisfaction}%</strong></td>
+    </tr>`;
+    ep.farmers.forEach(f => {
+      html += `<tr class="${did}" style="display:none;background:#f0faf0">
+        <td style="padding-left:36px">↳ <strong>${esc(f.farmer)}</strong></td>
+        <td>${esc(f.crop)}</td>
+        <td>Demand: ${Number(f.demand).toLocaleString()} L</td>
+        <td>Alloc: ${Number(f.allocated).toLocaleString()} L</td>
+        <td colspan="2">Shortage: ${Number(f.shortage).toLocaleString()} L</td>
+        <td><strong>${f.demand_met_pct}%</strong> met</td>
+      </tr>`;
+    });
+  });
+  html += '</tbody></table>';
+  document.getElementById('sim-epoch-table').innerHTML = html;
+}
+
+function toggleEpochRow(cls) {
+  const rows = document.querySelectorAll('.' + cls);
+  rows.forEach(r => r.style.display = r.style.display==='none' ? 'table-row' : 'none');
+}
+
+function renderSimTrendChart(epochs) {
+  const ctx = document.getElementById('simTrendChart');
+  if (!ctx) return;
+  if (chartInstances.sim) chartInstances.sim.destroy();
+  const labels = epochs.map(e => `Epoch #${e.epoch}`);
+  const supply = epochs.map(e => e.supply);
+  const allocated = epochs.map(e => e.total_allocated);
+  const shortage = epochs.map(e => e.shortage);
+
+  chartInstances.sim = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Water Supply (L)', data: supply, borderColor: '#3498db', backgroundColor: 'rgba(52,152,219,.1)', tension: .3, fill: true },
+        { label: 'Water Allocated (L)', data: allocated, borderColor: '#28a745', tension: .3 },
+        { label: 'Shortage (L)', data: shortage, borderColor: '#e74c3c', borderDash: [5,5], tension: .3 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: { y: { ticks: { callback: v => Number(v).toLocaleString() + ' L' } } },
+      plugins: { legend: { position: 'bottom' } }
+    }
+  });
+}
+
+// ==================== CONFIGURATION ====================
+const CONFIG_SCHEMA = [
+  {key:'pipe_capacity_lpm',label:'Pipe Capacity (L/min)',step:'1'},
+  {key:'valve_flow_lpm',label:'Valve Flow Rate (L/min)',step:'1'},
+  {key:'operating_window_minutes',label:'Operating Solar Window (minutes)',step:'10'},
+  {key:'reference_et0_mm_day',label:'Reference ET₀ Baseline (mm/day)',step:'0.1'},
+  {key:'effective_rainfall_mm_day',label:'Effective Rainfall (mm/day)',step:'0.1'},
+  {key:'irrigation_efficiency',label:'Irrigation Efficiency (0.1 – 1.0)',step:'0.01'},
+  {key:'target_moisture',label:'Target Soil Moisture (%)',step:'1'},
+  {key:'soil_sensor_noise',label:'Soil Sensor Noise (Gaussian σ)',step:'0.1'},
+  {key:'flow_sensor_noise',label:'Flow Sensor Noise Fraction',step:'0.005'},
+  {key:'random_seed',label:'Simulation Random Seed',step:'1'}
+];
+
+async function loadConfig() {
+  const cfg = await api('/api/config');
+  if (cfg.error) return;
+  configData = cfg;
+  document.getElementById('config-form').innerHTML = CONFIG_SCHEMA.map(f => `
+    <div class="form-group">
+      <label>${f.label}</label>
+      <input class="form-control" id="cfg-${f.key}" type="number" step="${f.step}" value="${cfg[f.key]}"/>
+    </div>
+  `).join('');
+}
+
+function applyPreset(type) {
+  if (type === 'commercial') {
+    document.getElementById('cfg-pipe_capacity_lpm').value = 350;
+    document.getElementById('cfg-valve_flow_lpm').value = 180;
+    document.getElementById('cfg-operating_window_minutes').value = 360;
+    document.getElementById('cfg-reference_et0_mm_day').value = 5.0;
+    document.getElementById('cfg-irrigation_efficiency').value = 0.85;
+    toast('Loaded 5 HP Solar Farm Preset. Click "Save Configuration" to apply.');
+  } else if (type === 'prototype') {
+    document.getElementById('cfg-pipe_capacity_lpm').value = 15;
+    document.getElementById('cfg-valve_flow_lpm').value = 8;
+    document.getElementById('cfg-operating_window_minutes').value = 240;
+    document.getElementById('cfg-reference_et0_mm_day').value = 5.0;
+    document.getElementById('cfg-irrigation_efficiency').value = 0.85;
+    toast('Loaded Prototype Demo Preset. Click "Save Configuration" to apply.');
+  }
+}
+
+async function saveConfig() {
+  const body = {};
+  CONFIG_SCHEMA.forEach(f => {
+    body[f.key] = f.key === 'random_seed' ? parseInt(document.getElementById('cfg-'+f.key).value) : parseFloat(document.getElementById('cfg-'+f.key).value);
+  });
+  const res = await api('/api/config','PUT',body);
+  if (res.ok) {
+    toast('System configuration updated successfully!');
+    loadConfig();
+  } else {
+    alert(res.error || 'Failed to save configuration');
+  }
+}
+
+// ==================== AUDIT LOG ====================
+async function loadAudit() {
+  const res = await api('/api/audit');
+  document.getElementById('audit-log').textContent = res.log || 'No audit entries found.';
+}
+
+// ==================== ADMIN CREDENTIALS ====================
+document.getElementById('cred-password').addEventListener('input', function() {
+  document.getElementById('cred-confirm-grp').style.display = this.value ? 'block' : 'none';
+});
+
+async function changeCredentials() {
+  const current = document.getElementById('cred-current').value;
+  const newUser = document.getElementById('cred-username').value.trim();
+  const newPw = document.getElementById('cred-password').value;
+  const confirm = document.getElementById('cred-confirm').value;
+
+  if (!current) { alert('Enter current password'); return; }
+  if (newPw && newPw !== confirm) { alert('New passwords do not match'); return; }
+  if (newPw && newPw.length < 10) { alert('New password must be at least 10 characters'); return; }
+
+  const res = await api('/api/auth/admin/change-credentials','POST',{
+    current_password: current,
+    new_username: newUser || undefined,
+    new_password: newPw || undefined
+  });
+
+  if (res.ok) {
+    toast('Admin credentials updated successfully!');
+    document.getElementById('admin-username-display').textContent = res.username;
+    ['cred-current','cred-username','cred-password','cred-confirm'].forEach(id => document.getElementById(id).value = '');
+  } else {
+    alert(res.error || 'Failed to update credentials');
+  }
+}
+
+// ==================== FARMER SELF-SERVICE PORTAL ====================
+async function loadFarmerPortal() {
+  const container = document.getElementById('farmer-data-container');
+  if (!container) return;
+
+  try {
+    const f = await api('/api/farmer/me');
+    if (!f || f.error) {
+      container.innerHTML = `
+        <div class="card" style="padding:36px;text-align:center">
+          <div style="font-size:2.4rem;margin-bottom:12px">⚠️</div>
+          <h3 style="color:var(--red);margin-bottom:8px">Unable to load field telemetry</h3>
+          <p style="color:var(--text-muted);margin-bottom:20px">${esc(f?.error || 'Could not connect to irrigation controller')}</p>
+          <button class="btn btn-primary" onclick="loadFarmerPortal()">🔄 Retry Connection</button>
+        </div>
+      `;
+      return;
+    }
+    currentFarmerProfile = f;
+
+    const duration = Number(f.crop_duration) || 120;
+    const age = Number(f.crop_age_days) || 0;
+    const pct = Math.min(100, Math.max(0, Math.round((age / duration) * 100)));
+
+    // Soil Moisture & Request Status Banner
+    const moisture = Number(f.last_soil_moisture != null ? f.last_soil_moisture : 72.4);
+    const hasPendingReq = (f.my_requests || []).some(r => r.status === 'pending' || r.status === 'approved');
+    const recentFulfilledReq = (f.my_requests || []).find(r => r.status === 'fulfilled');
+
+    let statusBanner = '';
+    if (recentFulfilledReq && moisture >= 55) {
+      statusBanner = `
+        <div class="alert-banner-success">
+          <div style="display:flex;align-items:center;gap:14px">
+            <span style="font-size:2.2rem">✅</span>
+            <div>
+              <strong style="font-size:1.08rem">Water Requirement Fulfilled via Nash Bargaining!</strong>
+              <p style="font-size:.85rem;opacity:.95;margin-top:2px">
+                Your water request (${esc(recentFulfilledReq.id)}) of ${Number(recentFulfilledReq.requested_litres).toLocaleString()} L was successfully delivered. Root zone soil moisture is now replenished to a healthy <strong>${moisture}%</strong>.
+              </p>
+            </div>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="showPastSlip('Latest Session', ${recentFulfilledReq.requested_litres}, ${recentFulfilledReq.requested_litres})" style="background:rgba(255,255,255,.2);color:#fff;border-color:rgba(255,255,255,.4)">📄 View Delivery Slip</button>
+        </div>
+      `;
+    } else if (hasPendingReq) {
+      statusBanner = `
+        <div class="alert-banner-info">
+          <div style="display:flex;align-items:center;gap:12px">
+            <span style="font-size:2rem">⏳</span>
+            <div>
+              <strong style="font-size:1.05rem">Water Delivery in Progress</strong>
+              <p style="font-size:.85rem;opacity:.95;margin-top:2px">Your water request is queued with the edge coordinator. The solar pump will open your plot valve shortly.</p>
+            </div>
+          </div>
+          <span class="badge" style="background:#fff;color:#0284c7;font-weight:700">🕒 In Queue</span>
+        </div>
+      `;
+    } else if (moisture < 35) {
+      statusBanner = `
+        <div class="alert-banner-urgent">
+          <div style="display:flex;align-items:center;gap:12px">
+            <span style="font-size:2rem">🚨</span>
+            <div>
+              <strong style="font-size:1.05rem">Critical Soil Moisture Deficit Detected (${moisture}%)</strong>
+              <p style="font-size:.85rem;opacity:.95;margin-top:2px">Your root zone is near the wilting threshold. Click below to request water immediately.</p>
+            </div>
+          </div>
+          <button class="btn btn-warning" onclick="openWaterRequestModal(true)">⚡ Request Immediate Water</button>
+        </div>
+      `;
+    }
+
+    // Farmer-Friendly Solar Power & Battery Microgrid Card
+    const sol = f.solar_telemetry || {
+      weather: 'Sunny',
+      battery_soc_pct: 84.5,
+      battery_voltage: 52.1,
+      pump_interlock_safe: true,
+      solar_generation_watts: 3600,
+      solar_irradiance_wm2: 900,
+      charging_state: 'Charging',
+      runtime_hours: 0.5
+    };
+
+    const isPumpReady = !!sol.pump_interlock_safe;
+    const soc = Math.round(sol.battery_soc_pct != null ? sol.battery_soc_pct : 84.5);
+    const solarWatts = Math.round(sol.solar_generation_watts != null ? sol.solar_generation_watts : 3600);
+    const isCharging = sol.charging_state === 'Charging' || (!sol.charging_state && solarWatts > 500);
+
+    let chargeText = '🔋 Battery Ready';
+    if (isCharging) {
+      chargeText = `⚡ Solar Charging (+${(solarWatts/1000).toFixed(2)} kW) ~${sol.runtime_hours || 0.5}h to full`;
+    } else if (sol.charging_state === 'Discharging') {
+      chargeText = '⚡ Supplying Irrigation Pump';
+    }
+
+    const solarCard = `
+      <div class="solar-telemetry-box" id="farmer-solar-card" style="margin-bottom:22px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:12px">
+          <div style="display:flex;align-items:center;gap:12px">
+            <span style="font-size:1.85rem">☀️🔋</span>
+            <div>
+              <h3 style="font-size:1.18rem;font-weight:800;letter-spacing:-0.3px;color:#fff;margin:0">Solar Power & Canal Pump Status</h3>
+              <p style="font-size:.82rem;opacity:.9;color:#e8f7ec;margin-top:2px">Live solar energy and pump availability for watering your field</p>
+            </div>
+          </div>
+
+          <!-- Environment Selector & Request Water -->
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-size:.8rem;font-weight:700;color:#fff">Environment:</span>
+            <div class="weather-chip-group">
+              <button class="weather-btn ${sol.weather==='Sunny'?'active':''}" onclick="setWeather('Sunny')">☀️ Sunny</button>
+              <button class="weather-btn ${sol.weather==='Partly Cloudy'?'active':''}" onclick="setWeather('Partly Cloudy')">⛅ Partly Cloudy</button>
+              <button class="weather-btn ${sol.weather==='Overcast'?'active':''}" onclick="setWeather('Overcast')">☁️ Overcast</button>
+              <button class="weather-btn ${sol.weather==='Rainy'?'active':''}" onclick="setWeather('Rainy')">🌧️ Rainy</button>
+            </div>
+            <button class="btn btn-warning btn-sm" onclick="openWaterRequestModal(false)" style="font-weight:700;margin-left:6px;box-shadow:0 3px 10px rgba(0,0,0,0.25)">💧 Request Water</button>
+          </div>
+        </div>
+
+        <div class="st-grid">
+          <!-- Box 1: Visual Battery Level -->
+          <div class="battery-wrap">
+            <div class="battery-icon-visual">
+              <div class="battery-level-fill" style="width:${Math.min(100,Math.max(8,soc))}%;background:${soc>=50?'#2ecc71':(soc>=20?'#f39c12':'#e74c3c')}"></div>
+            </div>
+            <div class="battery-info-text">
+              <div class="battery-pct">${soc}%</div>
+              <div class="battery-state">${chargeText}</div>
+            </div>
+          </div>
+
+          <!-- Box 2: Battery Reserve (Curated for farmer) -->
+          <div style="background:rgba(255,255,255,.1);padding:10px 14px;border-radius:var(--radius-sm);border:1px solid rgba(255,255,255,.15)">
+            <div style="font-size:.72rem;opacity:.85;font-weight:700">🔋 BATTERY STORAGE</div>
+            <div style="font-size:1.25rem;font-weight:800;color:#fff">${soc}% Stored</div>
+            <div style="font-size:.75rem;opacity:.92;color:#e8f7ec">${soc >= 20 ? 'Ample power to run irrigation' : 'Low charge • Solar charging active'}</div>
+          </div>
+
+          <!-- Box 3: Sunlight Strength (Curated for farmer) -->
+          <div style="background:rgba(255,255,255,.1);padding:10px 14px;border-radius:var(--radius-sm);border:1px solid rgba(255,255,255,.15)">
+            <div style="font-size:.72rem;opacity:.85;font-weight:700">☀️ SUNLIGHT STRENGTH</div>
+            <div style="font-size:1.25rem;font-weight:800;color:#fff">${solarWatts >= 2800 ? 'Strong Sunlight' : (solarWatts >= 1000 ? 'Moderate Sun' : 'Low Sun')}</div>
+            <div style="font-size:.75rem;opacity:.92;color:#e8f7ec">${solarWatts.toLocaleString()} W Free Solar Electricity</div>
+          </div>
+
+          <!-- Box 4: Canal Pump Readiness (Curated for farmer) -->
+          <div style="background:rgba(255,255,255,.1);padding:10px 14px;border-radius:var(--radius-sm);border:1px solid rgba(255,255,255,.15)">
+            <div style="font-size:.72rem;opacity:.85;font-weight:700">⚡ CANAL PUMP STATUS</div>
+            <div style="font-size:1.18rem;font-weight:800;color:${isPumpReady ? '#86efac' : '#fca5a5'}">
+              ${isPumpReady ? '✅ Ready to Water' : '⏸️ Paused (Low Sun/Battery)'}
+            </div>
+            <div style="font-size:.75rem;opacity:.92;color:#e8f7ec">
+              ${isPumpReady ? 'Free solar energy ready for your field' : 'Recharging battery storage'}
+            </div>
+          </div>
+        </div>
+
+        <!-- Plain English Farmer Guidance Strip -->
+        <div style="margin-top:14px;padding-top:10px;border-top:1px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;font-size:.82rem;color:#f0fdf4">
+          <div>
+            🌾 <strong>Farmer Note:</strong> ${isPumpReady 
+              ? 'The solar pump has full power. If your crop needs water, click "Request Water" to notify the edge coordinator.' 
+              : 'Sunlight is low right now. The solar system is recharging batteries. Water pumping will resume shortly.'}
+          </div>
+          <div style="font-size:.76rem;opacity:.85">
+            ⏰ Best Free Pumping Window: <strong>10:00 AM – 3:30 PM</strong>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Weather Forecast Widget
+    const wf = f.weather_forecast || {
+      current: {
+        condition: sol.weather || 'Sunny',
+        temperature_c: 32,
+        temp_max: 34,
+        temp_min: 22,
+        humidity_pct: 55,
+        wind_speed_kmh: 12,
+        solar_irradiance_wm2: sol.solar_irradiance_wm2 || 880,
+        et0_mm_day: 5.5,
+        rainfall_24h_mm: 0
+      },
+      forecast: [
+        { label: 'Today', icon: '☀️', condition: 'Sunny', temp_max: 34, temp_min: 22, rain_chance_pct: 5, rain_mm: 0, solar_score: 'Full Sun (100%)', advice: 'Bright sunshine today! Ample free solar power is available. Best time for watering is 10:00 AM to 3:30 PM.' },
+        { label: 'Tomorrow', icon: '☀️', condition: 'Sunny', temp_max: 35, temp_min: 23, rain_chance_pct: 10, rain_mm: 0, solar_score: 'Full Sun (95%)', advice: 'Hot and clear sunny skies tomorrow. Solar batteries will charge quickly to full capacity.' },
+        { label: 'Day 3', icon: '⛅', condition: 'Partly Cloudy', temp_max: 32, temp_min: 21, rain_chance_pct: 25, rain_mm: 0.5, solar_score: 'Good Sun (70%)', advice: 'Mild sunshine with gentle passing clouds. Great weather for steady crop growth.' },
+        { label: 'Day 4', icon: '⛅', condition: 'Partly Cloudy', temp_max: 30, temp_min: 20, rain_chance_pct: 35, rain_mm: 2.0, solar_score: 'Fair Sun (60%)', advice: 'Passing clouds keep soil cooler. Water only if your soil reading shows dryness.' },
+        { label: 'Day 5', icon: '🌧️', condition: 'Rainy', temp_max: 27, temp_min: 19, rain_chance_pct: 75, rain_mm: 18.5, solar_score: 'Rain Ahead', advice: 'Rain showers predicted later this week. Hold off on heavy watering to let rain water your fields for free.' }
+      ],
+      smart_advisory: 'Bright sunshine today! Ample free solar power is available for irrigation.'
+    };
+
+    const curW = wf.current || {};
+    const forecastDays = Array.isArray(wf.forecast) ? wf.forecast : [];
+
+    const forecastCardsHtml = forecastDays.map((day, idx) => `
+      <div class="fc-day-card ${idx===0 ? 'today' : ''}">
+        <div class="fc-day-name">${esc(day.label || ('Day ' + (idx+1)))} ${idx===0 ? '<span style="color:var(--green);font-size:.72rem">(Today)</span>' : ''}</div>
+        <div class="fc-day-icon">${day.icon || '☀️'}</div>
+        <div class="fc-day-condition">${esc(day.condition || 'Sunny')}</div>
+        <div class="fc-day-temps">${day.temp_max || 32}° / ${day.temp_min || 22}°C</div>
+        <div class="fc-day-rain">💧 ${day.rain_chance_pct || 0}% ${day.rain_mm > 0 ? '('+day.rain_mm+'mm)' : ''}</div>
+        <div class="fc-day-solar">☀️ ${esc(day.solar_score || 'Ready')}</div>
+      </div>
+    `).join('');
+
+    const weatherCardHtml = `
+      <div class="weather-forecast-card">
+        <div class="weather-fc-header">
+          <div style="display:flex;align-items:center;gap:12px">
+            <span style="font-size:2rem">🌦️</span>
+            <div>
+              <div style="font-weight:800;font-size:1.15rem;color:var(--text)">Farm Micro-Climate & 5-Day Weather Forecast</div>
+              <div style="font-size:0.82rem;color:var(--text-muted)">Live weather updates & practical farming recommendations</div>
+            </div>
+          </div>
+          <span class="badge ${curW.condition==='Rainy' ? 'badge-sky' : (curW.condition==='Sunny' ? 'badge-green' : 'badge-amber')}" style="font-size:0.85rem">
+            ● ${esc(curW.condition || 'Sunny')}
+          </span>
+        </div>
+
+        <!-- Current Observation Panel -->
+        <div class="weather-current-panel">
+          <div class="weather-temp-badge">
+            <span>${curW.condition==='Rainy' ? '🌧️' : (curW.condition==='Sunny' ? '☀️' : (curW.condition==='Overcast' ? '☁️' : '⛅'))}</span>
+            <span>${curW.temperature_c || 30}°C</span>
+          </div>
+          <div class="weather-pills-row">
+            <div class="weather-pill">💧 Air Moisture: <strong>${curW.humidity_pct || 50}% (${(curW.humidity_pct || 50) >= 70 ? 'Moist Air' : 'Dry Air'})</strong></div>
+            <div class="weather-pill">💨 Wind: <strong>${curW.wind_speed_kmh || 10} km/h (${(curW.wind_speed_kmh || 10) > 20 ? 'Breezy' : 'Gentle'})</strong></div>
+            <div class="weather-pill">🌧️ Rain Today: <strong>${(curW.rainfall_24h_mm || 0) > 0 ? (curW.rainfall_24h_mm + ' mm (Rain Falling)') : '0 mm (Dry)'}</strong></div>
+            <div class="weather-pill">☀️ Pumping Sunlight: <strong>${sol.weather === 'Sunny' ? 'Full Sun (Strong Power)' : (sol.weather === 'Partly Cloudy' ? 'Good Sun (Sufficient)' : (sol.weather === 'Overcast' ? 'Dim Sun (Battery Backup)' : 'Raining (Pumping Paused)'))}</strong></div>
+          </div>
+          <div>
+            <button class="btn btn-secondary btn-sm" id="btn-farmer-refresh" onclick="refreshFarmerTelemetry(this)" title="Refresh telemetry">🔄 Refresh</button>
+          </div>
+        </div>
+
+        <!-- Agronomic Advisory -->
+        <div class="weather-advisory-banner">
+          <span style="font-size:1.6rem">💡</span>
+          <div>
+            <strong>Farm Advisory for ${esc(f.name)}'s ${esc(f.crop)}:</strong>
+            <span style="margin-left:4px">${esc(wf.smart_advisory || 'Weather is favorable for healthy crop growth.')}</span>
+          </div>
+        </div>
+
+        <!-- 5-Day Outlook Grid -->
+        <div style="font-size:0.82rem;font-weight:700;color:var(--text-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px">5-Day Agricultural Weather Outlook:</div>
+        <div class="forecast-cards-strip">
+          ${forecastCardsHtml}
+        </div>
+      </div>
+    `;
+
+    // Water Requests Table
+    let reqRows = '';
+    if (f.my_requests && f.my_requests.length) {
+      reqRows = f.my_requests.map(r => {
+        let badge = '<span class="badge badge-amber">🕒 Pending</span>';
+        if (r.status === 'approved') badge = '<span class="badge badge-green">✅ Approved</span>';
+        else if (r.status === 'declined') badge = '<span class="badge badge-red">❌ Declined</span>';
+        else if (r.status === 'fulfilled') badge = '<span class="badge badge-sky">💧 Fulfilled</span>';
+
+        return `<tr>
+          <td><strong>${esc(r.id)}</strong></td>
+          <td>${new Date(r.created_at).toLocaleDateString()}</td>
+          <td><strong>${Number(r.requested_litres || 0).toLocaleString()} L</strong></td>
+          <td><span class="badge ${r.urgency==='emergency'?'badge-red':(r.urgency==='high'?'badge-amber':'badge-green')}">${esc(r.urgency)}</span></td>
+          <td>${badge}</td>
+          <td><span style="font-size:.82rem;color:var(--text-muted)">${r.admin_feedback ? esc(r.admin_feedback) : 'In coordinator queue'}</span></td>
+          <td>
+            <button class="btn btn-secondary btn-sm" onclick="showIrrigationSlip('${esc(r.id)}', ${r.requested_litres || 0})">📄 Slip</button>
+          </td>
+        </tr>`;
+      }).join('');
+    } else {
+      reqRows = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:18px">No water requests submitted yet. Click "Request Water Delivery" above.</td></tr>';
+    }
+
+    // Irrigation History
+    let histRows = '';
+    if (f.irrigation_history && f.irrigation_history.length) {
+      histRows = f.irrigation_history.map(h => `<tr>
+        <td>${new Date(h.date).toLocaleDateString()} ${new Date(h.date).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</td>
+        <td><strong>${Number(h.allocated || 0).toLocaleString()} L</strong></td>
+        <td>${Number(h.delivered || 0).toLocaleString()} L</td>
+        <td><span class="badge ${(h.satisfied_pct||0)>=90?'badge-green':'badge-amber'}">${h.satisfied_pct || 0}%</span></td>
+        <td>
+          <button class="btn btn-secondary btn-sm" onclick="showPastSlip('${new Date(h.date).toLocaleDateString()}', ${h.allocated || 0}, ${h.delivered || 0})">📄 Receipt</button>
+        </td>
+      </tr>`).join('');
+    } else {
+      histRows = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:18px">No past irrigation cycles recorded yet.</td></tr>';
+    }
+
+    // Farmer-Curated Plot Water Pipeline & Field Valve Status
+    const plotWaterStatusHtml = `
+      <div class="digital-twin-card">
+        <div class="dt-header">
+          <div style="display:flex;align-items:center;gap:12px">
+            <span style="font-size:1.8rem">🌾</span>
+            <div>
+              <div style="font-weight:800;font-size:1.15rem;letter-spacing:-0.3px">Canal Water Line & Field Valve Status</div>
+              <div style="font-size:0.8rem;color:#bbf7d0">Live water delivery connection from village solar pump to your plot valve</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div class="dt-badge"><span class="dt-pulse-dot"></span> LIVE VALVE CONNECTION</div>
+            <button class="btn btn-secondary btn-sm" onclick="testFarmerValvePulse(this)" style="background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.3);font-weight:600">▶️ Test My Field Valve</button>
+          </div>
+        </div>
+
+        <div class="dt-stage">
+          <!-- Stage 1: Solar Pump & Canal Source -->
+          <div class="dt-node">
+            <div style="font-size:2.2rem">☀️ 🌊</div>
+            <div style="font-weight:800;font-size:0.95rem;margin-top:4px">Village Canal Pump</div>
+            <div style="font-size:0.75rem;color:#a7f3d0;margin-top:2px">${isPumpReady ? '🟢 Solar Pump Active & Ready' : '⚪ Standby • Recharging'}</div>
+            <div style="font-size:0.72rem;color:rgba(255,255,255,0.75);margin-top:6px">Source: Main Village Canal Sump</div>
+          </div>
+
+          <!-- Stage 2: Main Pipeline to Farmer's Plot -->
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:#93c5fd;font-weight:700">
+              <span>Main Canal Pipeline (To Your Plot)</span>
+              <span>${isPumpReady ? 'Status: Pressurized' : 'Status: Idle'}</span>
+            </div>
+            <div class="dt-pipe">
+              <div class="dt-pipe-flow" id="farmer-pipe-anim"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:0.7rem;color:rgba(255,255,255,0.65)">
+              <span>Canal Sump</span>
+              <span>Underground Distribution Pipe</span>
+              <span>Your Plot Inlet</span>
+            </div>
+          </div>
+
+          <!-- Stage 3: Farmer's Field Solenoid Valve -->
+          <div>
+            <div class="dt-valve-chip active" id="farmer-valve-self" style="transition:all 0.3s ease">
+              <div>
+                <strong>🚰 Valve-${esc(f.id)} (Your Plot)</strong>
+                <div style="font-size:0.72rem;color:#38bdf8">${esc(f.crop)} • ${f.area_acres} acres</div>
+              </div>
+              <span class="badge ${recentFulfilledReq ? 'badge-sky' : (hasPendingReq ? 'badge-amber' : 'badge-green')}" style="font-size:0.72rem">
+                ${recentFulfilledReq ? '💧 Recently Watered' : (hasPendingReq ? '⏳ In Queue' : '✅ Ready to Open')}
+              </span>
+            </div>
+            <div style="margin-top:8px;font-size:0.72rem;color:rgba(255,255,255,0.7);text-align:right">
+              Total water delivered: <strong>${Math.round(Number(f.total_delivered_litres) || 0).toLocaleString()} Litres</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Root Zone Soil Health Speedometer Dial (Farmer-friendly thresholds)
+    const soilHealthDialHtml = `
+      <div class="card" style="margin-bottom:24px">
+        <div class="card-header">
+          <div class="card-title">🌱 Root Zone Hydration & Soil Health Index</div>
+          <span class="badge ${moisture >= 55 && moisture <= 80 ? 'badge-green' : (moisture > 80 ? 'badge-sky' : 'badge-amber')}" style="font-size:0.85rem">
+            ${moisture >= 55 && moisture <= 80 ? '🟢 Optimal Soil Moisture' : (moisture > 80 ? '💧 Soil Saturated' : '🟡 Low Soil Moisture')}
+          </span>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1.2fr 2fr;gap:20px;align-items:center">
+          <!-- Circular SVG Dial -->
+          <div style="text-align:center;padding:10px">
+            <svg viewBox="0 0 160 100" style="width:180px;max-width:100%;overflow:visible">
+              <path d="M 20 90 A 60 60 0 0 1 140 90" fill="none" stroke="#e2e8f0" stroke-width="16" stroke-linecap="round"/>
+              <path d="M 20 90 A 60 60 0 0 1 45 42" fill="none" stroke="#ef4444" stroke-width="16"/>
+              <path d="M 47 39 A 60 60 0 0 1 80 30" fill="none" stroke="#f59e0b" stroke-width="16"/>
+              <path d="M 83 30 A 60 60 0 0 1 123 52" fill="none" stroke="#22c55e" stroke-width="16"/>
+              <path d="M 125 55 A 60 60 0 0 1 140 90" fill="none" stroke="#38bdf8" stroke-width="16"/>
+              <g transform="rotate(${(moisture / 100) * 180 - 90}, 80, 90)">
+                <line x1="80" y1="90" x2="80" y2="38" stroke="#1f2937" stroke-width="3" stroke-linecap="round"/>
+                <circle cx="80" cy="90" r="6" fill="#1f2937"/>
+              </g>
+              <text x="80" y="96" text-anchor="middle" font-size="16" font-weight="800" fill="var(--text)">${moisture}%</text>
+            </svg>
+            <div style="font-size:0.78rem;font-weight:700;color:var(--text-muted);margin-top:4px">Root Zone Sensor</div>
+          </div>
+
+          <!-- Agronomic Breakdown -->
+          <div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:0.82rem;flex-wrap:wrap;gap:6px">
+              <span>🔴 Too Dry: <strong style="color:#ef4444">&lt;30%</strong></span>
+              <span>🟡 Moderate: <strong style="color:#f59e0b">30-55%</strong></span>
+              <span>🟢 Ideal Moisture: <strong style="color:#22c55e">55-80%</strong></span>
+              <span>🔵 Saturated / Wet: <strong style="color:#38bdf8">&gt;80%</strong></span>
+            </div>
+            <div class="progress-wrap" style="height:14px;background:#f1f5f9">
+              <div class="progress-fill" style="width:${Math.min(100, moisture)}%;background:linear-gradient(90deg, #ef4444 0%, #f59e0b 35%, #22c55e 65%, #38bdf8 100%)"></div>
+            </div>
+            <div style="margin-top:12px;font-size:0.85rem;line-height:1.45;color:var(--text)">
+              🌱 <strong>Soil Condition:</strong> ${moisture >= 55 && moisture <= 80 
+                ? 'Your soil has ideal moisture! Your crop roots have plenty of water to thrive.' 
+                : (moisture > 80 
+                    ? 'Soil is well saturated with water. No watering is needed right now.'
+                    : (moisture >= 30
+                        ? 'Soil moisture is moderate. If hot weather continues, consider requesting a routine solar watering cycle.'
+                        : 'Soil is very dry! Please click "Request Water" above to get water delivered to your field.'))}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const dailyNeed = Math.round(Number(f.daily_water_estimate) || 0);
+    const waterHarvest = Math.round(Number(f.water_until_harvest) || 0);
+    const totalDelivered = Math.round(Number(f.total_delivered_litres) || 0);
+
+    container.innerHTML = `
+      ${statusBanner}
+
+      <div class="farmer-hero" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px">
+        <div style="display:flex;align-items:center;gap:16px">
+          <div class="farmer-hero-icon">🧑‍🌾</div>
+          <div>
+            <h2>Welcome, ${esc(f.name)}</h2>
+            <p>Farmer ID: <strong>${esc(f.id)}</strong> &nbsp;|&nbsp; Field Area: <strong>${f.area_acres} acres</strong> &nbsp;|&nbsp; Crop: <strong>${esc(f.crop)}</strong> &nbsp;|&nbsp; Status: <span class="badge badge-green">${f.status}</span></p>
+          </div>
+        </div>
+        <div>
+          <button class="voice-btn" id="voice-advisory-btn" onclick="speakFieldAdvisory()" title="Listen to spoken audio report">
+            <span>🔊</span> <span>Listen in Audio</span>
+          </button>
+        </div>
+      </div>
+
+      ${solarCard}
+      ${plotWaterStatusHtml}
+      ${soilHealthDialHtml}
+      ${weatherCardHtml}
+
+      <!-- Growth Stage Card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">🌾 Crop Lifecycle: <strong>${esc(f.crop)}</strong> (Age: ${age} of ${duration} days)</div>
+          <span class="badge badge-sky" style="font-size:.85rem">${f.days_to_harvest || 0} days to harvest</span>
+        </div>
+        <div class="progress-wrap" style="height:12px">
+          <div class="progress-fill" style="width:${pct}%;background:linear-gradient(90deg,var(--green),var(--sky))"></div>
+        </div>
+        <div class="crop-timeline">
+          <div class="timeline-step ${pct>=15?'completed':'active'}">
+            <div class="timeline-dot">1</div>
+            <div class="timeline-label">Initial</div>
+          </div>
+          <div class="timeline-step ${pct>=50?'completed':pct>=20?'active':''}">
+            <div class="timeline-dot">2</div>
+            <div class="timeline-label">Development</div>
+          </div>
+          <div class="timeline-step ${pct>=80?'completed':pct>=50?'active':''}">
+            <div class="timeline-dot">3</div>
+            <div class="timeline-label">Mid-Season</div>
+          </div>
+          <div class="timeline-step ${pct>=100?'completed':pct>=80?'active':''}">
+            <div class="timeline-dot">4</div>
+            <div class="timeline-label">Harvest</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stat Grid -->
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-label">Daily Crop Water Need</div>
+          <div class="stat-value">💧 ${dailyNeed.toLocaleString()}<span class="stat-unit">L/d</span></div>
+          <div class="stat-sub">Based on Penman-Monteith ETc</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Water Needed Till Harvest</div>
+          <div class="stat-value">🏁 ${waterHarvest.toLocaleString()}<span class="stat-unit">L</span></div>
+          <div class="stat-sub">Cumulative forecast</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Total Water Received</div>
+          <div class="stat-value">✅ ${totalDelivered.toLocaleString()}<span class="stat-unit">L</span></div>
+          <div class="stat-sub">${f.epochs_served || 0} sessions completed</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Soil Moisture Reading</div>
+          <div class="stat-value">🌱 ${f.last_soil_moisture!=null?f.last_soil_moisture+'%':'N/A'}</div>
+          <div class="stat-sub">Root zone sensor</div>
+        </div>
+      </div>
+
+      <!-- Active Requests Card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📬 Your Water Delivery Requests to Coordinator</div>
+          <button class="btn btn-primary btn-sm" onclick="openWaterRequestModal(false)">➕ New Request</button>
+        </div>
+        <div class="table-wrap">
+          <table><thead><tr>
+            <th>Request ID</th><th>Date</th><th>Requested Water</th><th>Urgency</th><th>Status</th><th>Coordinator Response</th><th>Action</th>
+          </tr></thead><tbody>${reqRows}</tbody></table>
+        </div>
+      </div>
+
+      <!-- Irrigation History -->
+      <div class="card">
+        <div class="card-title">📋 Your Historical Irrigation Cycles</div>
+        <div class="table-wrap">
+          <table><thead><tr>
+            <th>Date & Time</th><th>Water Allocated</th><th>Water Delivered</th><th>Satisfaction</th><th>Slip</th>
+          </tr></thead><tbody>${histRows}</tbody></table>
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    console.error('Farmer portal failed to load:', err);
+    container.innerHTML = `
+      <div class="card" style="padding:36px;text-align:center">
+        <div style="font-size:2.4rem;margin-bottom:12px">⚠️</div>
+        <h3 style="color:var(--red);margin-bottom:8px">Portal Render Error</h3>
+        <p style="color:var(--text-muted);margin-bottom:20px">${esc(err.message)}</p>
+        <button class="btn btn-primary" onclick="loadFarmerPortal()">🔄 Reload Portal</button>
+      </div>
+    `;
+  }
+}
+
+// Open Water Request Modal
+function openWaterRequestModal(isEmergency = false) {
+  if (!currentFarmerProfile) return;
+  const f = currentFarmerProfile;
+  document.getElementById('req-litres-input').value = Math.round(f.daily_water_estimate);
+  document.getElementById('req-rec-hint').textContent = `Recommended based on ${f.crop} daily need (${f.daily_water_estimate} L)`;
+  document.getElementById('req-urgency-select').value = isEmergency ? 'emergency' : (f.moisture_status === 'critical_deficit' ? 'high' : 'normal');
+  document.getElementById('req-notes-input').value = isEmergency ? 'Leaves wilting, urgent irrigation requested' : '';
+  document.getElementById('water-request-modal').classList.remove('hidden');
+}
+
+async function submitWaterRequest() {
+  const litres = parseFloat(document.getElementById('req-litres-input').value);
+  const urgency = document.getElementById('req-urgency-select').value;
+  const preferred_time = document.getElementById('req-time-select').value;
+  const notes = document.getElementById('req-notes-input').value.trim();
+
+  if (isNaN(litres) || litres <= 0) {
+    alert('Please enter a valid water volume in litres');
+    return;
+  }
+
+  const res = await api('/api/requests','POST',{
+    requested_litres: litres,
+    urgency,
+    preferred_time,
+    notes
+  });
+
+  closeModal('water-request-modal');
+  if (res.ok) {
+    playNotificationChime();
+    toast('Water request submitted successfully! Edge coordinator notified.');
+    loadFarmerPortal();
+    loadNotifications();
+  } else {
+    alert(res.error || 'Failed to submit request');
+  }
+}
+
+// Show Irrigation Slips
+function showIrrigationSlip(reqId, litres) {
+  const f = currentFarmerProfile;
+  document.getElementById('slip-content').innerHTML = `
+========================================
+       FARMFLOW IRRIGATION PASS
+========================================
+Request ID   : ${reqId}
+Farmer ID    : ${f.id}
+Farmer Name  : ${f.name}
+Crop         : ${f.crop} (${f.area_acres} acres)
+Requested    : ${Number(litres).toLocaleString()} Litres
+Assigned Pipe: Valve-${f.id}
+Allocation   : Need-Weighted Nash Bargaining
+Power Source : 4 kW Solar PV / 48V Battery
+Date Issued  : ${new Date().toLocaleDateString()}
+Status       : Verified by Edge Coordinator
+========================================
+`;
+  document.getElementById('slip-modal').classList.remove('hidden');
+}
+
+function showPastSlip(dateStr, allocated, delivered) {
+  const f = currentFarmerProfile;
+  document.getElementById('slip-content').innerHTML = `
+========================================
+     IRRIGATION DELIVERY RECEIPT
+========================================
+Date         : ${dateStr}
+Farmer ID    : ${f.id}
+Farmer Name  : ${f.name}
+Crop         : ${f.crop} (${f.area_acres} acres)
+Allocated    : ${Number(allocated).toLocaleString()} Litres
+Delivered    : ${Number(delivered).toLocaleString()} Litres
+Valve ID     : Valve-${f.id}
+Method       : Need-Weighted Nash Bargaining
+System       : PM-KUSUM Solar Smart Irrigation
+========================================
+`;
+  document.getElementById('slip-modal').classList.remove('hidden');
+}
+
+// ==================== CSV EXPORT ====================
+function exportFarmersCSV() {
+  if (!farmersData.length) { alert('No farmers to export'); return; }
+  let csv = 'ID,Name,Crop,Area (Acres),Age (Days),Daily Water Need (L),Has Password,Status\n';
+  farmersData.forEach(f => {
+    csv += `"${f.id}","${f.name}","${f.crop}",${f.area_acres},${f.crop_age_days},${f.daily_water_estimate},${f.has_password?'Yes':'No'},${f.status}\n`;
+  });
+  downloadCSV(csv, 'farmflow_farmers.csv');
+}
+
+function exportIrrigationCSV() {
+  if (!lastIrrResult || !lastIrrResult.rows) { alert('Run irrigation first to export results'); return; }
+  let csv = 'Farmer,Farmer ID,Crop,Soil Moisture (%),Demand (L),Allocated (L),Delivered (L),Satisfaction (%)\n';
+  lastIrrResult.rows.forEach(r => {
+    csv += `"${r.farmer}","${r.farmerId}","${r.crop}",${r.soil_moisture},${r.demand},${r.allocated},${r.delivered},${r.satisfied_pct}\n`;
+  });
+  downloadCSV(csv, 'farmflow_irrigation_result.csv');
+}
+
+function downloadCSV(content, filename) {
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ==================== AGRONOMIC VOICE ASSISTANT & DIGITAL TWIN ====================
+let isSpeaking = false;
+function speakFieldAdvisory() {
+  if (!('speechSynthesis' in window)) {
+    toast('Audio speech is not supported in this browser.', true);
+    return;
+  }
+  if (isSpeaking) {
+    window.speechSynthesis.cancel();
+    isSpeaking = false;
+    updateVoiceButton(false);
+    return;
+  }
+  if (!currentFarmerProfile) return;
+  const f = currentFarmerProfile;
+  const sol = f.solar_telemetry || {};
+  const moisture = Math.round(f.last_soil_moisture || 72);
+  const isRain = (sol.weather === 'Rainy') || (f.weather_forecast?.current?.rainfall_24h_mm > 0);
+
+  let text = '';
+  if (isRain) {
+    text = `Namaste ${f.name}! It is raining today, watering your ${f.crop} field naturally for free. The solar pump is safely resting to keep your soil healthy and prevent waterlogging. Have a wonderful day!`;
+  } else if (moisture < 35) {
+    text = `Namaste ${f.name}! Your ${f.crop} field soil moisture is low at ${moisture} percent. Please click the Request Water button on your screen so the edge coordinator can allocate solar irrigation to your plot.`;
+  } else {
+    text = `Namaste ${f.name}! Welcome to FarmFlow. Your ${f.crop} field is at day ${f.crop_age_days} of growth. Root zone soil moisture is ${moisture} percent, which is in the healthy zone. Free solar power is active right now. Best time to water your crops today is between 10 AM and 3:30 PM. Have a productive day!`;
+  }
+
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.rate = 0.95;
+  utter.pitch = 1.0;
+  utter.onstart = () => { isSpeaking = true; updateVoiceButton(true); };
+  utter.onend = () => { isSpeaking = false; updateVoiceButton(false); };
+  utter.onerror = () => { isSpeaking = false; updateVoiceButton(false); };
+  window.speechSynthesis.speak(utter);
+}
+
+function updateVoiceButton(active) {
+  const btn = document.getElementById('voice-advisory-btn');
+  if (!btn) return;
+  if (active) {
+    btn.innerHTML = `
+      <span class="sound-wave">
+        <span class="sound-bar"></span><span class="sound-bar"></span><span class="sound-bar"></span><span class="sound-bar"></span>
+      </span>
+      <span>Speaking... (Click to stop)</span>
+    `;
+    btn.style.background = 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)';
+  } else {
+    btn.innerHTML = `<span>🔊</span> <span>Listen in Audio</span>`;
+    btn.style.background = 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)';
+  }
+}
+
+// Interactive farmer telemetry refresh with visual spinner, sound & toast
+async function refreshFarmerTelemetry(btn) {
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spin">🔄</span> Refreshing...`;
+  }
+  try {
+    await loadFarmerPortal();
+    playNotificationChime();
+    toast('✅ Telemetry updated with live solar and field sensor data!');
+  } catch (err) {
+    toast('⚠️ Refresh failed: ' + (err.message || 'Unknown error'), true);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = `🔄 Refresh`;
+    }
+  }
+}
+
+// Farmer Plot Valve Test Pulse (Harmless 4-second pipeline responsiveness test)
+function testFarmerValvePulse(btn) {
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spin">🔄</span> Testing Valve...`;
+  }
+  const pipe = document.getElementById('farmer-pipe-anim');
+  const valve = document.getElementById('farmer-valve-self');
+  if (pipe) {
+    pipe.style.animationDuration = '0.6s';
+  }
+  if (valve) {
+    valve.style.border = '2px solid #86efac';
+    valve.style.boxShadow = '0 0 14px rgba(134,239,172,0.6)';
+  }
+  playNotificationChime();
+  toast('💧 Valve Test Pulse Sent: Your field valve responded instantly and is ready to deliver water!');
+  setTimeout(() => {
+    if (pipe) pipe.style.animationDuration = '2s';
+    if (valve) {
+      valve.style.border = '';
+      valve.style.boxShadow = '';
+    }
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = `▶️ Test My Field Valve`;
+    }
+  }, 4000);
+}
+
+// Hydraulic Flow Pulse for Admin / Coordinator Digital Twin
+function pulseCanalFlow() {
+  const pipe = document.getElementById('dt-pipe-anim');
+  const valve = document.getElementById('dt-valve-self');
+  if (pipe) {
+    pipe.style.animationDuration = '0.7s';
+    setTimeout(() => { if (pipe) pipe.style.animationDuration = '2s'; }, 4000);
+  }
+  if (valve) {
+    valve.classList.add('active');
+    setTimeout(() => { if (valve) valve.classList.remove('active'); }, 4000);
+  }
+  playNotificationChime();
+  toast('Canal pulse simulated: Flowing 5.0 L/min through solar pipeline to field valves!');
+}
+
+// ==================== HELPERS ====================
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.add('hidden');
+}
+
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) el.classList.add('hidden'); });
+});
+
+// Enter key login support
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('login-page').classList.contains('active')) {
+    if (currentRole === 'farmer') farmerLogin();
+    else adminLogin();
+  }
+});
+
+// ==================== BOOTSTRAP ====================
+async function init() {
+  const res = await api('/api/auth/status');
+  if (res.adminSetupRequired) {
+    switchRole('admin');
+    document.getElementById('admin-setup-note').style.display = 'block';
+    document.getElementById('admin-confirm-group').style.display = 'block';
+    document.getElementById('admin-pass-hint').style.display = 'inline';
+    document.getElementById('admin-login-btn').textContent = '🔧 Create Admin Account';
+  }
+  if (res.loggedIn) {
+    if (res.role === 'admin') showAdmin(res.username);
+    else if (res.role === 'farmer') showFarmer(res.username);
+  }
+
+  const cropsData = await api('/api/crops');
+  if (Array.isArray(cropsData)) crops = cropsData;
+  populateCropDropdown();
+
+  // Periodic poll for notifications and solar battery (every 10s)
+  setInterval(() => {
+    if (document.getElementById('admin-page').classList.contains('active') ||
+        document.getElementById('farmer-page').classList.contains('active')) {
+      loadNotifications();
+    }
+  }, 10000);
+}
+
+init();
+</script>
+</body>
+</html>
