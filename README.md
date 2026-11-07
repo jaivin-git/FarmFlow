@@ -22,8 +22,10 @@ FarmFlow bridges the gap between field-level agricultural physics, solar energy 
 * Maximizes the Nash product $\prod (U_i - d_i)^{w_i}$ to ensure mathematical fairness and pareto efficiency.
 
 ### 3. 🧑‍🌾 Curated Farmer Self-Service Portal
-* **Practical Weather Forecast**: Plain-language weather observations (temperature, air moisture, wind, daily rainfall, sunlight availability) without engineering jargon.
-* **Plot Water Line & Valve Status**: Visual pipeline connectivity from the canal pump to the farmer's plot valve with a one-click valve response test pulse.
+* **🌾 Multi-Plot & Multi-Crop Management**: Farmers can register, edit, and manage multiple cultivated parcels with different crops (e.g. Rice + Maize), individual acreages, sowing dates, soil types, and distinct water quotas.
+* **📅 Sowing Date Picker & Live Crop Age Calculator**: Automatically computes crop age in days from planting date, growth stage progress (Initial, Vegetative, Mid-Season, Ripening), harvest countdown, and dynamic water demand ($ET_c$).
+* **📍 Hyper-Local Real-Time Weather with GPS**: One-click live GPS location detection integrated with Open-Meteo satellite weather API and regional agricultural presets (Cauvery Delta, Punjab, Maharashtra, Karnataka, Haryana).
+* **Canal Water Line & Valve Status**: Plain-language visual pipeline connectivity from the solar pump to the farmer's plot valve with a one-click valve response test pulse.
 * **Root Zone Soil Health Dial**: Intuitive soil moisture gauge with clear risk thresholds (*Too Dry*, *Moderate*, *Ideal Moisture*, *Saturated*).
 * **On-Demand Water Requests**: Farmers can request normal or emergency water delivery with coordinator notification.
 * **Agronomic Audio Assistant**: Web Speech API audio narration offering daily agricultural advice.
@@ -31,12 +33,12 @@ FarmFlow bridges the gap between field-level agricultural physics, solar energy 
 ### 4. ⚙️ Edge Coordinator / Admin Dashboard
 * **Canal & Valve Hydraulic Digital Twin**: Live hydraulic simulation with 5HP pump impeller RPM, line pressure (bar), head loss (m), friction loss, and solenoid valve manifold.
 * **Dual-Engine Visualization**: High-performance Chart.js analytics with native SVG fallback for 100% rendering reliability across all network conditions.
-* **Farmer Management & Security**: Role-based access control, bcrypt password protection, status toggles, and downloadable official irrigation delivery slips.
+* **Farmer Management & Security**: Multi-plot support, role-based access control, bcrypt password protection, status toggles, and downloadable official irrigation delivery slips.
 * **Audit Trail**: Real-time logging of all coordinator actions, weather changes, and distribution cycles.
 
-### 5. 🌙 Dark & Light Adaptive Theming
-* **Dual-Portal Support**: Seamless one-click dark/light theme toggle in both Farmer Self-Service and Edge Coordinator portals, as well as the login gateway.
-* **Deep Emerald Obsidian Palette**: Tailored for night-time farming operations and low-light control room monitoring.
+### 5. 🎨 Modern UI/UX Palette & High-Contrast Dark Mode
+* **Signature Trio Palette**: Deep Emerald Green (`#064e3b`), Crisp White (`#ffffff`), and **Solar Harvest Gold** (`#f59e0b` / `#fbbf24`), symbolizing solar energy and bountiful harvest.
+* **High-Contrast Dark Mode**: WCAG AA compliant contrast for all badges (`.badge-red` emergency, `.badge-sky` fulfilled, `.badge-amber` pending, `.badge-green`), table headers, and data cells.
 * **Persistent Preference**: Automatically saves theme choice to `localStorage` while honoring system `prefers-color-scheme` settings.
 * **Real-time Chart Re-rendering**: Chart.js doughnut/bar analytics and native SVG telemetry adapt text, axes, and legends instantaneously on theme toggle without refreshing.
 

@@ -87,12 +87,13 @@ let CONFIG = { ...DEFAULT_CONFIG, ...loadJson(CONFIG_FILE, {}) };
 // ======================== FARMERS =============================
 let FARMERS = loadJson(FARMERS_FILE, []);
 if (!Array.isArray(FARMERS)) FARMERS = [];
+function saveFarmers() { saveJson(FARMERS_FILE, FARMERS); }
 FARMERS.forEach(f => {
   delete f.fairness_credit;
   if (f.crop === 'Rice') f.crop = 'Rice (Paddy)';
+  ensureFarmerPlots(f);
 });
-
-function saveFarmers() { saveJson(FARMERS_FILE, FARMERS); }
+saveFarmers();
 
 // ======================== HISTORY =============================
 let HISTORY = loadJson(HISTORY_FILE, []);
@@ -263,34 +264,6 @@ function getWeatherForecast() {
   };
 }
 
-// Strip sensitive fields before sending farmer to frontend
-function sanitizeFarmer(f) {
-  const { password_hash, ...safe } = f;
-  const dailyNeed = estimatedDailyCropWaterLitres(f);
-  const moisture = f.last_soil_moisture;
-
-  // Soil moisture health level
-  let moisture_status = 'sufficient';
-  if (moisture != null) {
-    if (moisture < 30.0) moisture_status = 'critical_deficit';
-    else if (moisture < 50.0) moisture_status = 'moderate_deficit';
-  }
-
-  return {
-    ...safe,
-    has_password: !!password_hash,
-    crop_coefficient: +(cropCoefficient(f.crop, f.crop_age_days)).toFixed(3),
-    daily_water_estimate: +dailyNeed.toFixed(2),
-    water_until_harvest: +(estimatedWaterUntilHarvestLitres(f)).toFixed(2),
-    area_acres: +parseFloat(f.area_acres).toFixed(3),
-    total_allocated_litres: +(f.total_allocated_litres || 0).toFixed(2),
-    total_delivered_litres: +(f.total_delivered_litres || 0).toFixed(2),
-    epochs_served: f.epochs_served || 0,
-    status: f.status || 'active',
-    moisture_status
-  };
-}
-
 // ======================== CROP MATH ===========================
 function cropCoefficient(crop, age) {
   const data = CROP_DATA[crop];
@@ -309,7 +282,88 @@ function cropCoefficient(crop, age) {
   return kc_mid + frac * (kc_end - kc_mid);
 }
 
+// ======================== MULTI-PLOT HELPERS ==================
+function getPlotAgeDays(plot) {
+  if (plot.sowing_date) {
+    const sown = new Date(plot.sowing_date + 'T00:00:00');
+    const now = new Date();
+    const diff = Math.floor((now - sown) / 86400000);
+    return Math.max(0, diff);
+  }
+  return Math.max(0, parseInt(plot.crop_age_days) || 0);
+}
+
+function ensureFarmerPlots(f) {
+  if (!f.plots || !Array.isArray(f.plots) || f.plots.length === 0) {
+    const age = parseInt(f.crop_age_days) || 30;
+    const today = new Date();
+    const sown = f.planting_date || new Date(today - age * 86400000).toISOString().split('T')[0];
+    f.plots = [{
+      id: 'PLOT-' + f.id + '-1',
+      name: (f.crop || 'Paddy') + ' Parcel',
+      crop: f.crop || 'Rice (Paddy)',
+      area_acres: parseFloat(f.area_acres) || 0.1,
+      sowing_date: sown,
+      crop_age_days: age,
+      soil_type: 'Clay Loam',
+      notes: 'Initial cultivated parcel'
+    }];
+  }
+
+  // Sync plot ages
+  f.plots.forEach(p => {
+    p.crop_age_days = getPlotAgeDays(p);
+  });
+
+  // Calculate totals
+  const totalArea = f.plots.reduce((acc, p) => acc + (parseFloat(p.area_acres) || 0), 0);
+  f.area_acres = +totalArea.toFixed(3);
+
+  if (f.plots.length === 1) {
+    f.crop = f.plots[0].crop;
+    f.crop_age_days = f.plots[0].crop_age_days;
+    f.planting_date = f.plots[0].sowing_date;
+  } else {
+    const cropList = [...new Set(f.plots.map(p => p.crop))];
+    f.crop = cropList.join(', ');
+    f.crop_age_days = f.plots[0].crop_age_days;
+  }
+}
+
+function estimatedDailyPlotWaterLitres(plot) {
+  const area_m2 = parseFloat(plot.area_acres) * 4046.8564224;
+  const et0 = Math.max(0, parseFloat(CONFIG.reference_et0_mm_day));
+  const rainfall = Math.max(0, parseFloat(CONFIG.effective_rainfall_mm_day || 0));
+  const age = getPlotAgeDays(plot);
+  const kc = cropCoefficient(plot.crop, age);
+  const efficiency = Math.max(0.01, Math.min(1.0, parseFloat(CONFIG.irrigation_efficiency)));
+  const crop_et = kc * et0;
+  const net = Math.max(0, crop_et - rainfall);
+  return (net * area_m2) / efficiency;
+}
+
+function estimatedPlotWaterUntilHarvestLitres(plot) {
+  const duration = parseInt(CROP_DATA[plot.crop]?.duration_days || 120);
+  const currentAge = getPlotAgeDays(plot);
+  if (currentAge >= duration) return 0;
+  let total = 0;
+  for (let age = currentAge; age < duration; age++) {
+    const area_m2 = parseFloat(plot.area_acres) * 4046.8564224;
+    const et0 = Math.max(0, parseFloat(CONFIG.reference_et0_mm_day));
+    const rainfall = Math.max(0, parseFloat(CONFIG.effective_rainfall_mm_day || 0));
+    const kc = cropCoefficient(plot.crop, age);
+    const efficiency = Math.max(0.01, Math.min(1.0, parseFloat(CONFIG.irrigation_efficiency)));
+    const crop_et = kc * et0;
+    const net = Math.max(0, crop_et - rainfall);
+    total += (net * area_m2) / efficiency;
+  }
+  return total;
+}
+
 function estimatedDailyCropWaterLitres(farmer) {
+  if (farmer.plots && Array.isArray(farmer.plots) && farmer.plots.length > 0) {
+    return farmer.plots.reduce((sum, p) => sum + estimatedDailyPlotWaterLitres(p), 0);
+  }
   const area_m2 = parseFloat(farmer.area_acres) * 4046.8564224;
   const et0 = Math.max(0, parseFloat(CONFIG.reference_et0_mm_day));
   const rainfall = Math.max(0, parseFloat(CONFIG.effective_rainfall_mm_day || 0));
@@ -321,6 +375,9 @@ function estimatedDailyCropWaterLitres(farmer) {
 }
 
 function estimatedWaterUntilHarvestLitres(farmer) {
+  if (farmer.plots && Array.isArray(farmer.plots) && farmer.plots.length > 0) {
+    return farmer.plots.reduce((sum, p) => sum + estimatedPlotWaterUntilHarvestLitres(p), 0);
+  }
   const duration = parseInt(CROP_DATA[farmer.crop]?.duration_days || 120);
   const currentAge = Math.max(0, parseInt(farmer.crop_age_days));
   if (currentAge >= duration) return 0;
@@ -329,6 +386,57 @@ function estimatedWaterUntilHarvestLitres(farmer) {
     total += estimatedDailyCropWaterLitres({ ...farmer, crop_age_days: age });
   }
   return total;
+}
+
+// Strip sensitive fields before sending farmer to frontend
+function sanitizeFarmer(f) {
+  ensureFarmerPlots(f);
+  const { password_hash, ...safe } = f;
+  const dailyNeed = estimatedDailyCropWaterLitres(f);
+  const moisture = f.last_soil_moisture;
+
+  // Soil moisture health level
+  let moisture_status = 'sufficient';
+  if (moisture != null) {
+    if (moisture < 30.0) moisture_status = 'critical_deficit';
+    else if (moisture < 50.0) moisture_status = 'moderate_deficit';
+  }
+
+  const detailedPlots = (f.plots || []).map(p => {
+    const age = getPlotAgeDays(p);
+    const kc = cropCoefficient(p.crop, age);
+    const dailyWater = estimatedDailyPlotWaterLitres(p);
+    const data = CROP_DATA[p.crop] || { duration_days: 120, season: '' };
+    const daysToHarvest = Math.max(0, (data.duration_days || 120) - age);
+    const stage = cropStageLabel(p.crop, age);
+    return {
+      ...p,
+      crop_age_days: age,
+      crop_coefficient: +kc.toFixed(3),
+      daily_water_litres: +dailyWater.toFixed(1),
+      duration_days: data.duration_days || 120,
+      days_to_harvest: daysToHarvest,
+      stage,
+      season: data.season || ''
+    };
+  });
+
+  const primaryCrop = (f.plots && f.plots[0]) ? f.plots[0].crop : f.crop;
+
+  return {
+    ...safe,
+    has_password: !!password_hash,
+    plots: detailedPlots,
+    crop_coefficient: +(cropCoefficient(primaryCrop, f.crop_age_days)).toFixed(3),
+    daily_water_estimate: +dailyNeed.toFixed(2),
+    water_until_harvest: +(estimatedWaterUntilHarvestLitres(f)).toFixed(2),
+    area_acres: +parseFloat(f.area_acres).toFixed(3),
+    total_allocated_litres: +(f.total_allocated_litres || 0).toFixed(2),
+    total_delivered_litres: +(f.total_delivered_litres || 0).toFixed(2),
+    epochs_served: f.epochs_served || 0,
+    status: f.status || 'active',
+    moisture_status
+  };
 }
 
 function cropStageLabel(crop, age) {
@@ -588,6 +696,158 @@ app.get('/api/solar-battery', (req, res) => {
 // --- Weather & Agricultural Forecast ---
 app.get('/api/weather/forecast', requireAuth, (req, res) => {
   res.json(getWeatherForecast());
+});
+
+function mapWmoToCondition(code) {
+  if (code === 0) {
+    return {
+      condition: 'Sunny',
+      icon: '☀️',
+      label: 'Clear & Sunny',
+      advice: 'Bright sunshine! Solar panels and battery charging at maximum rate. Ideal time for irrigation.'
+    };
+  }
+  if (code === 1 || code === 2) {
+    return {
+      condition: 'Partly Cloudy',
+      icon: '⛅',
+      label: 'Partly Cloudy',
+      advice: 'Mild sunshine with gentle passing clouds. Steady solar charging; comfortable weather for crops.'
+    };
+  }
+  if (code === 3) {
+    return {
+      condition: 'Overcast',
+      icon: '☁️',
+      label: 'Overcast & Cool',
+      advice: 'Cool and cloudy sky. Water evaporation is very low; root zone moisture stays retained.'
+    };
+  }
+  if (code >= 51 && code <= 67) {
+    return {
+      condition: 'Rainy',
+      icon: '🌧️',
+      label: 'Rain Falling',
+      advice: 'Rain is watering your field for free! Solar canal pump is safely paused to prevent waterlogging.'
+    };
+  }
+  if (code >= 80 && code <= 82) {
+    return {
+      condition: 'Rainy',
+      icon: '🌦️',
+      label: 'Rain Showers',
+      advice: 'Passing rain showers. Hold off on heavy canal pumping to let natural rain soak your soil.'
+    };
+  }
+  if (code >= 95) {
+    return {
+      condition: 'Rainy',
+      icon: '⛈️',
+      label: 'Thunderstorm',
+      advice: 'Thunderstorm in area. Pumping suspended for field electrical and canal safety.'
+    };
+  }
+  return {
+    condition: 'Partly Cloudy',
+    icon: '⛅',
+    label: 'Mild Weather',
+    advice: 'Normal farming weather across the village canal network.'
+  };
+}
+
+const LIVE_WEATHER_CACHE = {};
+
+app.get('/api/weather/live', requireAuth, async (req, res) => {
+  const lat = parseFloat(req.query.lat) || 10.78;
+  const lon = parseFloat(req.query.lon) || 79.13;
+  const cacheKey = lat.toFixed(2) + '_' + lon.toFixed(2);
+  const now = Date.now();
+
+  if (LIVE_WEATHER_CACHE[cacheKey] && (now - LIVE_WEATHER_CACHE[cacheKey].timestamp < 10 * 60 * 1000)) {
+    return res.json(LIVE_WEATHER_CACHE[cacheKey].data);
+  }
+
+  try {
+    const https = require('https');
+    const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon + '&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,et0_fao_evapotranspiration,precipitation_probability_max&timezone=auto';
+
+    const weatherData = await new Promise((resolve, reject) => {
+      const reqHttp = https.get(url, { timeout: 4500 }, (apiRes) => {
+        let body = '';
+        apiRes.on('data', chunk => body += chunk);
+        apiRes.on('end', () => {
+          if (apiRes.statusCode === 200) {
+            try { resolve(JSON.parse(body)); } catch (e) { reject(e); }
+          } else {
+            reject(new Error('Open-Meteo returned status ' + apiRes.statusCode));
+          }
+        });
+      });
+      reqHttp.on('error', reject);
+      reqHttp.on('timeout', () => { reqHttp.destroy(); reject(new Error('Weather timeout')); });
+    });
+
+    const currentWmo = weatherData.current?.weather_code || 0;
+    const cond = mapWmoToCondition(currentWmo);
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    const forecast = (weatherData.daily?.time || []).slice(0, 5).map((dStr, idx) => {
+      const d = new Date(dStr + 'T00:00:00');
+      const wmo = weatherData.daily.weather_code[idx] || 0;
+      const dayCond = mapWmoToCondition(wmo);
+      const rainMm = +(weatherData.daily.precipitation_sum[idx] || 0).toFixed(1);
+      const rainChance = Math.round(weatherData.daily.precipitation_probability_max?.[idx] || (rainMm > 0 ? 80 : 10));
+      const et0 = +(weatherData.daily.et0_fao_evapotranspiration?.[idx] || 4.5).toFixed(1);
+
+      return {
+        label: idx === 0 ? 'Today' : (idx === 1 ? 'Tomorrow' : (dayNames[d.getDay()] + ', ' + d.getDate() + ' ' + d.toLocaleString('default', { month: 'short' }))),
+        date_str: dStr,
+        condition: dayCond.condition,
+        icon: dayCond.icon,
+        temp_max: Math.round(weatherData.daily.temperature_2m_max[idx]),
+        temp_min: Math.round(weatherData.daily.temperature_2m_min[idx]),
+        rain_chance_pct: rainChance,
+        rain_mm: rainMm,
+        et0: et0,
+        solar_score: dayCond.condition === 'Sunny' ? 'Full Sun (100%)' : (dayCond.condition === 'Partly Cloudy' ? 'Good Sun (70%)' : (dayCond.condition === 'Overcast' ? 'Dim Sun (35%)' : 'Rain Ahead')),
+        advice: dayCond.advice
+      };
+    });
+
+    const cur = forecast[0] || {};
+    const result = {
+      is_live: true,
+      latitude: lat,
+      longitude: lon,
+      location_name: req.query.location_name || (lat.toFixed(2) + '° N, ' + lon.toFixed(2) + '° E'),
+      current: {
+        condition: cond.condition,
+        temperature_c: Math.round(weatherData.current?.temperature_2m ?? 30),
+        temp_max: cur.temp_max || 32,
+        temp_min: cur.temp_min || 22,
+        humidity_pct: Math.round(weatherData.current?.relative_humidity_2m ?? 60),
+        wind_speed_kmh: Math.round(weatherData.current?.wind_speed_10m ?? 12),
+        solar_irradiance_wm2: cond.condition === 'Sunny' ? 900 : (cond.condition === 'Partly Cloudy' ? 560 : (cond.condition === 'Overcast' ? 230 : 95)),
+        et0_mm_day: cur.et0 || 5.0,
+        rainfall_24h_mm: cur.rain_mm || 0,
+        battery_soc_pct: SOLAR.battery_soc_pct,
+        pump_safe: SOLAR.pump_interlock_safe
+      },
+      forecast,
+      smart_advisory: cond.advice,
+      last_updated: new Date().toISOString()
+    };
+
+    LIVE_WEATHER_CACHE[cacheKey] = { timestamp: now, data: result };
+    return res.json(result);
+  } catch (err) {
+    const fallback = getWeatherForecast();
+    fallback.is_live = false;
+    fallback.latitude = lat;
+    fallback.longitude = lon;
+    fallback.location_name = req.query.location_name || 'Agro-Meteorological Station (Offline Fallback)';
+    return res.json(fallback);
+  }
 });
 
 app.post('/api/solar-battery/weather', requireAuth, (req, res) => {
@@ -850,6 +1110,17 @@ app.post('/api/farmers', requireAdmin, async (req, res) => {
     epochs_served: 0,
     registered_at: today.toISOString()
   };
+  farmer.plots = [{
+    id: 'PLOT-' + farmer.id + '-1',
+    name: 'Main ' + crop + ' Plot',
+    crop,
+    area_acres: parseFloat(area_acres),
+    sowing_date: planted,
+    crop_age_days: age,
+    soil_type: 'Clay Loam',
+    notes: 'Registered by administrator'
+  }];
+  ensureFarmerPlots(farmer);
   farmer.estimated_daily_water_litres = estimatedDailyCropWaterLitres(farmer);
   farmer.estimated_water_until_harvest_litres = estimatedWaterUntilHarvestLitres(farmer);
 
@@ -972,6 +1243,142 @@ app.get('/api/farmer/me', requireAuth, (req, res) => {
   safe.weather_forecast = getWeatherForecast();
 
   res.json(safe);
+});
+
+// --- Farmer Plot Self-Service Endpoints ---
+app.get('/api/farmer/plots', requireAuth, (req, res) => {
+  let targetId = req.session.farmerId;
+  if (req.session.role === 'admin' && req.query.farmerId) {
+    targetId = req.query.farmerId;
+  }
+  const farmer = FARMERS.find(f => f.id === targetId);
+  if (!farmer) return res.status(404).json({ error: 'Farmer not found' });
+  ensureFarmerPlots(farmer);
+  const safe = sanitizeFarmer(farmer);
+  res.json({ ok: true, plots: safe.plots, total_area: safe.area_acres, daily_water_estimate: safe.daily_water_estimate });
+});
+
+app.post('/api/farmer/plots', requireAuth, (req, res) => {
+  let targetId = req.session.farmerId;
+  if (req.session.role === 'admin' && req.body.farmerId) {
+    targetId = req.body.farmerId;
+  }
+  const farmer = FARMERS.find(f => f.id === targetId);
+  if (!farmer) return res.status(404).json({ error: 'Farmer not found' });
+  ensureFarmerPlots(farmer);
+
+  const { name, crop, area_acres, sowing_date, soil_type, notes } = req.body;
+  if (!name || !crop || !area_acres) {
+    return res.status(400).json({ error: 'Plot name, crop, and area are required' });
+  }
+  if (!CROP_DATA[crop]) {
+    return res.status(400).json({ error: 'Invalid crop selected' });
+  }
+  const area = parseFloat(area_acres);
+  if (isNaN(area) || area <= 0) {
+    return res.status(400).json({ error: 'Area must be a positive number of acres' });
+  }
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const sown = sowing_date || todayStr;
+  const newPlotId = 'PLOT-' + farmer.id + '-' + (farmer.plots.length + 1);
+
+  const newPlot = {
+    id: newPlotId,
+    name: String(name).trim(),
+    crop,
+    area_acres: +area.toFixed(3),
+    sowing_date: sown,
+    soil_type: soil_type ? String(soil_type).trim() : 'Clay Loam',
+    notes: notes ? String(notes).trim() : '',
+    created_at: new Date().toISOString()
+  };
+
+  farmer.plots.push(newPlot);
+  ensureFarmerPlots(farmer);
+  farmer.estimated_daily_water_litres = estimatedDailyCropWaterLitres(farmer);
+  farmer.estimated_water_until_harvest_litres = estimatedWaterUntilHarvestLitres(farmer);
+  saveFarmers();
+
+  audit(req.session.username, 'Added new plot ' + newPlot.id + ' (' + newPlot.name + ', ' + newPlot.crop + ', ' + newPlot.area_acres + ' ac) for farmer ' + farmer.name);
+
+  addNotification({
+    recipientRole: 'farmer',
+    recipientId: farmer.id,
+    title: '🌾 New Plot Registered',
+    message: 'Plot "' + newPlot.name + '" (' + newPlot.crop + ', ' + newPlot.area_acres + ' acres, Sown: ' + sown + ') has been added to your field profile.',
+    type: 'success'
+  });
+
+  addNotification({
+    recipientRole: 'admin',
+    title: '🌱 New Plot Added by ' + farmer.name,
+    message: farmer.name + ' registered plot "' + newPlot.name + '" (' + newPlot.crop + ', ' + newPlot.area_acres + ' ac, Sown: ' + sown + ').',
+    type: 'info'
+  });
+
+  res.json({ ok: true, plot: newPlot, farmer: sanitizeFarmer(farmer) });
+});
+
+app.put('/api/farmer/plots/:plotId', requireAuth, (req, res) => {
+  let targetId = req.session.farmerId;
+  if (req.session.role === 'admin' && req.body.farmerId) {
+    targetId = req.body.farmerId;
+  }
+  const farmer = FARMERS.find(f => f.id === targetId);
+  if (!farmer) return res.status(404).json({ error: 'Farmer not found' });
+  ensureFarmerPlots(farmer);
+
+  const plot = farmer.plots.find(p => p.id === req.params.plotId);
+  if (!plot) return res.status(404).json({ error: 'Plot not found' });
+
+  const { name, crop, area_acres, sowing_date, soil_type, notes } = req.body;
+  if (name && String(name).trim()) plot.name = String(name).trim();
+  if (crop) {
+    if (!CROP_DATA[crop]) return res.status(400).json({ error: 'Invalid crop' });
+    plot.crop = crop;
+  }
+  if (area_acres != null && area_acres !== '') {
+    const a = parseFloat(area_acres);
+    if (!isNaN(a) && a > 0) plot.area_acres = +a.toFixed(3);
+  }
+  if (sowing_date) plot.sowing_date = sowing_date;
+  if (soil_type) plot.soil_type = String(soil_type).trim();
+  if (notes != null) plot.notes = String(notes).trim();
+
+  ensureFarmerPlots(farmer);
+  farmer.estimated_daily_water_litres = estimatedDailyCropWaterLitres(farmer);
+  farmer.estimated_water_until_harvest_litres = estimatedWaterUntilHarvestLitres(farmer);
+  saveFarmers();
+
+  audit(req.session.username, 'Updated plot ' + plot.id + ' (' + plot.name + ') for farmer ' + farmer.name);
+  res.json({ ok: true, plot, farmer: sanitizeFarmer(farmer) });
+});
+
+app.delete('/api/farmer/plots/:plotId', requireAuth, (req, res) => {
+  let targetId = req.session.farmerId;
+  if (req.session.role === 'admin' && req.query.farmerId) {
+    targetId = req.query.farmerId;
+  }
+  const farmer = FARMERS.find(f => f.id === targetId);
+  if (!farmer) return res.status(404).json({ error: 'Farmer not found' });
+  ensureFarmerPlots(farmer);
+
+  if (farmer.plots.length <= 1) {
+    return res.status(400).json({ error: 'Cannot delete your only plot. Every farmer must cultivate at least one plot.' });
+  }
+
+  const pIdx = farmer.plots.findIndex(p => p.id === req.params.plotId);
+  if (pIdx === -1) return res.status(404).json({ error: 'Plot not found' });
+
+  const [removed] = farmer.plots.splice(pIdx, 1);
+  ensureFarmerPlots(farmer);
+  farmer.estimated_daily_water_litres = estimatedDailyCropWaterLitres(farmer);
+  farmer.estimated_water_until_harvest_litres = estimatedWaterUntilHarvestLitres(farmer);
+  saveFarmers();
+
+  audit(req.session.username, 'Deleted plot ' + removed.id + ' (' + removed.name + ') for farmer ' + farmer.name);
+  res.json({ ok: true, removed, farmer: sanitizeFarmer(farmer) });
 });
 
 // --- Irrigation History (admin) ---

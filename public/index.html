@@ -29,6 +29,7 @@
   :root{
     --green:#1b7e36;--green-light:#28a745;--green-dark:#0f4f20;--green-soft:#eafaf1;
     --amber:#e67e22;--amber-light:#f39c12;--amber-soft:#fef9e7;
+    --gold:#f59e0b;--gold-light:#fbbf24;--gold-dark:#b45309;--gold-soft:#fef3c7;--gold-glow:rgba(245,158,11,0.35);
     --sky:#1d8cf8;--sky-light:#3498db;--sky-soft:#ebf5fb;
     --red:#e74c3c;--red-light:#ff6b6b;--red-soft:#fdedec;
     --purple:#8e44ad;--purple-soft:#f4ecf7;
@@ -48,10 +49,11 @@
     --border:#233f2c;
     --border-subtle:#193122;
     --text:#e2ece4;
-    --text-muted:#95ad9b;
+    --text-muted:#94a3b8;
     --green-dark:#86efac;
     --green-soft:rgba(34,197,94,0.18);
     --amber-soft:rgba(245,158,11,0.18);
+    --gold:#f59e0b;--gold-light:#fde047;--gold-dark:#b45309;--gold-soft:rgba(245,158,11,0.22);--gold-glow:rgba(245,158,11,0.45);
     --sky-soft:rgba(56,189,248,0.18);
     --red-soft:rgba(239,68,68,0.18);
     --purple-soft:rgba(168,85,247,0.18);
@@ -629,6 +631,9 @@
   .badge-red{background:var(--red-soft);color:#842029;border:1px solid #f8d7da}
   .badge-amber{background:var(--amber-soft);color:#664d03;border:1px solid #ffecb5}
   .badge-sky{background:var(--sky-soft);color:#084298;border:1px solid #cce5ff}
+  .badge-gold{background:var(--gold-soft);color:#92400e;border:1px solid #fde68a}
+  .btn-gold{background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%);color:#fff;border:none;font-weight:700;box-shadow:0 3px 12px rgba(245,158,11,0.3);transition:all .2s ease;cursor:pointer}
+  .btn-gold:hover{background:linear-gradient(135deg,#fbbf24 0%,#f59e0b 100%);transform:translateY(-1px);box-shadow:0 5px 16px rgba(245,158,11,0.45);color:#fff}
 
   /* ========== LOGIN PAGE ========== */
   #login-page{
@@ -774,20 +779,61 @@
     background: var(--card);
     border-color: var(--border);
   }
+  /* High-Contrast Luminous Badges in Dark Mode */
+  [data-theme="dark"] .badge-red {
+    background: rgba(239, 68, 68, 0.25) !important;
+    color: #fca5a5 !important;
+    border: 1px solid rgba(248, 113, 113, 0.5) !important;
+  }
+  [data-theme="dark"] .badge-sky {
+    background: rgba(56, 189, 248, 0.25) !important;
+    color: #7dd3fc !important;
+    border: 1px solid rgba(56, 189, 248, 0.5) !important;
+  }
+  [data-theme="dark"] .badge-amber {
+    background: rgba(245, 158, 11, 0.25) !important;
+    color: #fde047 !important;
+    border: 1px solid rgba(251, 191, 36, 0.5) !important;
+  }
+  [data-theme="dark"] .badge-green {
+    background: rgba(34, 197, 94, 0.25) !important;
+    color: #86efac !important;
+    border: 1px solid rgba(74, 222, 128, 0.5) !important;
+  }
+  [data-theme="dark"] .badge-gold {
+    background: rgba(245, 158, 11, 0.28) !important;
+    color: #fef08a !important;
+    border: 1px solid rgba(245, 158, 11, 0.6) !important;
+  }
+
   [data-theme="dark"] thead th {
-    background: #0d2814;
-    color: #e2ece4;
-    border-bottom: 2px solid #1e4526;
+    background: #0a2412 !important;
+    color: #f8fafc !important;
+    border-bottom: 2px solid #24582f !important;
+    font-weight: 700 !important;
   }
   [data-theme="dark"] tbody tr:nth-child(even) {
-    background: #0f1c13;
+    background: #0c1810;
   }
   [data-theme="dark"] tbody tr:hover {
-    background: #172d1f;
+    background: #142a1b;
   }
   [data-theme="dark"] td {
     border-top: 1px solid var(--border);
-    color: var(--text);
+    color: #f1f5f9 !important;
+  }
+  [data-theme="dark"] td strong {
+    color: #ffffff !important;
+  }
+  [data-theme="dark"] .text-muted,
+  [data-theme="dark"] span[style*="color:var(--text-muted)"],
+  [data-theme="dark"] span[style*="color:#6c757d"],
+  [data-theme="dark"] div[style*="color:var(--text-muted)"] {
+    color: #94a3b8 !important;
+  }
+  [data-theme="dark"] .plot-card {
+    background: #132218 !important;
+    border-color: #233f2c !important;
   }
   [data-theme="dark"] .form-control {
     background: #101c13;
@@ -1605,8 +1651,20 @@
         <input class="form-control" id="fm-area" type="number" min="0.001" step="0.01" placeholder="e.g. 1.5"/>
       </div>
       <div class="form-group">
+        <label>Sowing / Planting Date</label>
+        <input class="form-control" id="fm-sowing-date" type="date" onchange="calcAdminCropAge()" oninput="calcAdminCropAge()"/>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
         <label>Crop Age (Days) *</label>
-        <input class="form-control" id="fm-age" type="number" min="0" max="3650" placeholder="e.g. 35"/>
+        <input class="form-control" id="fm-age" type="number" min="0" max="3650" placeholder="e.g. 35" oninput="syncAdminDateFromAge()"/>
+      </div>
+      <div class="form-group">
+        <label>Growth Stage Preview</label>
+        <div id="fm-stage-preview" style="background:var(--card-inner, #eef2f6);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:0.82rem;font-weight:700;color:var(--text);margin-top:2px">
+          🌱 Initial Stage
+        </div>
       </div>
     </div>
     <div class="form-group pw-group">
@@ -1623,6 +1681,75 @@
     </div>
   </div>
 </div>
+
+<!-- ==================== FARMER PLOT REGISTRATION & EDIT MODAL ==================== -->
+<div class="modal-overlay hidden" id="plot-modal">
+  <div class="modal-box" style="max-width:540px">
+    <div class="modal-title" id="plot-modal-title">🌾 Register Cultivated Plot</div>
+    <div class="login-error" id="plot-modal-error"></div>
+    <input type="hidden" id="plot-modal-id"/>
+
+    <div class="form-group">
+      <label>Plot / Parcel Name *</label>
+      <input class="form-control" id="plot-form-name" placeholder="e.g. North Ridge - Paddy, Canal Border Maize"/>
+      <div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px">Name or landmark of this section of your land</div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Cultivated Crop *</label>
+        <select class="form-control" id="plot-form-crop" onchange="updatePlotDateAgeCalc()"></select>
+      </div>
+      <div class="form-group">
+        <label>Plot Land Area (Acres) *</label>
+        <input class="form-control" id="plot-form-area" type="number" min="0.001" step="0.01" placeholder="e.g. 0.50" oninput="updatePlotDateAgeCalc()"/>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>📅 Sowing / Planting Date *</label>
+        <input class="form-control" id="plot-form-date" type="date" onchange="updatePlotDateAgeCalc()" oninput="updatePlotDateAgeCalc()"/>
+        <div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px">Pick the date seeds were planted</div>
+      </div>
+      <div class="form-group">
+        <label>Soil Type</label>
+        <select class="form-control" id="plot-form-soil">
+          <option value="Clay Loam">Clay Loam (High Retention)</option>
+          <option value="Sandy Loam">Sandy Loam (Quick Drainage)</option>
+          <option value="Alluvial Soil">Alluvial Soil (River Basin)</option>
+          <option value="Black Soil">Black Soil (Regur)</option>
+          <option value="Red Soil">Red Soil</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Live Crop Age & Agronomic Forecast Box -->
+    <div id="plot-calc-preview" style="background:var(--green-soft);border:1px solid #b7e4c7;border-radius:var(--radius-sm);padding:12px;margin:12px 0;font-size:0.83rem">
+      <div style="font-weight:700;color:var(--green-dark);margin-bottom:6px;display:flex;align-items:center;justify-content:space-between">
+        <span style="display:flex;align-items:center;gap:6px">🌱 Live Crop Age & Growth Forecast</span>
+        <span class="badge badge-gold" id="plot-prev-age-badge">0 Days Old</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;color:var(--text)">
+        <div>Growth Stage: <strong id="plot-prev-stage">Initial Stage</strong></div>
+        <div>Time to Harvest: <strong id="plot-prev-harvest">~120 Days</strong></div>
+        <div>Daily Water ($ET_c$): <strong id="plot-prev-water" style="color:#0284c7">~0 L/day</strong></div>
+        <div>Water until Harvest: <strong id="plot-prev-total-water">~0 L</strong></div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Plot Notes (Optional)</label>
+      <input class="form-control" id="plot-form-notes" placeholder="e.g. Drip line connected, organic mulching applied"/>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('plot-modal')">Cancel</button>
+      <button class="btn btn-gold" id="plot-modal-btn" onclick="submitPlotForm()">Save Plot</button>
+    </div>
+  </div>
+</div>
+
 
 <!-- 5. Delete Farmer Modal -->
 <div class="modal-overlay hidden" id="delete-modal">
@@ -2548,6 +2675,45 @@ async function submitFarmerPassword() {
   }
 }
 
+function calcAdminCropAge() {
+  const dVal = document.getElementById('fm-sowing-date')?.value;
+  if (!dVal) return;
+  const sown = new Date(dVal + 'T00:00:00');
+  const now = new Date();
+  const diffDays = Math.max(0, Math.floor((now - sown) / 86400000));
+  const ageEl = document.getElementById('fm-age');
+  if (ageEl) ageEl.value = diffDays;
+
+  const cropName = document.getElementById('fm-crop')?.value;
+  const cropObj = crops.find(c => c.name === cropName) || { duration_days: 120 };
+  const dur = cropObj.duration_days;
+  const pct = diffDays / dur;
+  let stage = 'Initial Stage';
+  if (pct > 0.8) stage = pct >= 1.0 ? 'Harvest Ready 🌾' : 'Late / Ripening';
+  else if (pct > 0.2) stage = 'Vegetative / Mid-Season 🌿';
+
+  const prev = document.getElementById('fm-stage-preview');
+  if (prev) prev.textContent = `🌱 ${stage} (${diffDays}d / ${dur}d, ~${Math.max(0, dur - diffDays)}d left)`;
+}
+
+function syncAdminDateFromAge() {
+  const age = parseInt(document.getElementById('fm-age')?.value) || 0;
+  const d = new Date(Date.now() - age * 86400000);
+  const dateEl = document.getElementById('fm-sowing-date');
+  if (dateEl) dateEl.value = d.toISOString().split('T')[0];
+
+  const cropName = document.getElementById('fm-crop')?.value;
+  const cropObj = crops.find(c => c.name === cropName) || { duration_days: 120 };
+  const dur = cropObj.duration_days;
+  const pct = age / dur;
+  let stage = 'Initial Stage';
+  if (pct > 0.8) stage = pct >= 1.0 ? 'Harvest Ready 🌾' : 'Late / Ripening';
+  else if (pct > 0.2) stage = 'Vegetative / Mid-Season 🌿';
+
+  const prev = document.getElementById('fm-stage-preview');
+  if (prev) prev.textContent = `🌱 ${stage} (${age}d / ${dur}d, ~${Math.max(0, dur - age)}d left)`;
+}
+
 // --- Register / Edit Modal ---
 function openAddFarmer() {
   editingFarmerId = null;
@@ -2558,6 +2724,11 @@ function openAddFarmer() {
   document.getElementById('fm-pw-hint').textContent = '(min 6 characters — required for farmer login)';
   document.getElementById('farmer-modal-error').style.display = 'none';
   populateCropDropdown();
+
+  const d = new Date();
+  document.getElementById('fm-sowing-date').value = d.toISOString().split('T')[0];
+  calcAdminCropAge();
+
   document.getElementById('farmer-modal').classList.remove('hidden');
 }
 
@@ -2573,6 +2744,11 @@ function openEditFarmer(id) {
   populateCropDropdown(f.crop);
   document.getElementById('fm-area').value = f.area_acres;
   document.getElementById('fm-age').value = f.crop_age_days;
+
+  const sownDate = f.planting_date || new Date(Date.now() - (f.crop_age_days || 0) * 86400000).toISOString().split('T')[0];
+  document.getElementById('fm-sowing-date').value = sownDate;
+  calcAdminCropAge();
+
   document.getElementById('fm-password').value = '';
   document.getElementById('fm-pw-hint').textContent = f.has_password ? '(Password is already set. Enter a new one to change, or leave blank to keep current)' : '(No password set yet. Enter one to enable farmer login)';
   document.getElementById('farmer-modal-error').style.display = 'none';
@@ -3221,8 +3397,10 @@ async function loadFarmerPortal() {
       </div>
     `;
 
-    // Weather Forecast Widget
-    const wf = f.weather_forecast || {
+    // Weather Forecast Widget (Prioritize live GPS forecast if fetched)
+    const wf = (currentFarmerProfile && currentFarmerProfile.weather_forecast && currentFarmerProfile.weather_forecast.is_live)
+      ? currentFarmerProfile.weather_forecast
+      : (f.weather_forecast || {
       current: {
         condition: sol.weather || 'Sunny',
         temperature_c: 32,
@@ -3260,17 +3438,32 @@ async function loadFarmerPortal() {
 
     const weatherCardHtml = `
       <div class="weather-forecast-card">
-        <div class="weather-fc-header">
+        <div class="weather-fc-header" style="flex-wrap:wrap;gap:12px">
           <div style="display:flex;align-items:center;gap:12px">
             <span style="font-size:2rem">🌦️</span>
             <div>
-              <div style="font-weight:800;font-size:1.15rem;color:var(--text)">Farm Micro-Climate & 5-Day Weather Forecast</div>
-              <div style="font-size:0.82rem;color:var(--text-muted)">Live weather updates & practical farming recommendations</div>
+              <div style="font-weight:800;font-size:1.15rem;color:var(--text)">Farm Micro-Climate & Real-Time Weather Forecast</div>
+              <div style="font-size:0.82rem;color:var(--text-muted)">
+                <span id="farmer-weather-loc-badge">📍 ${esc(wf.location_name || 'Cauvery Delta / Thanjavur (10.78° N, 79.13° E)')}</span>
+                ${wf.is_live ? '<span class="badge badge-gold" style="font-size:.7rem;margin-left:6px">● LIVE SATELLITE</span>' : ''}
+              </div>
             </div>
           </div>
-          <span class="badge ${curW.condition==='Rainy' ? 'badge-sky' : (curW.condition==='Sunny' ? 'badge-green' : 'badge-amber')}" style="font-size:0.85rem">
-            ● ${esc(curW.condition || 'Sunny')}
-          </span>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-gold btn-sm" onclick="detectLiveLocation(this)" title="Ask browser for your GPS coordinates to get exact real-time farm forecast">
+              📍 Use My Live GPS
+            </button>
+            <select class="form-control form-control-sm" id="farmer-region-select" onchange="changeFarmerWeatherRegion(this.value)" style="width:auto;display:inline-block;font-size:.8rem;padding:4px 8px">
+              <option value="thanjavur">🌾 Cauvery Delta / Thanjavur</option>
+              <option value="punjab">🌾 Punjab / Ludhiana</option>
+              <option value="nashik">🌾 Maharashtra / Nashik</option>
+              <option value="mandya">🌾 Karnataka / Mandya</option>
+              <option value="karnal">🌾 Haryana / Karnal</option>
+            </select>
+            <span class="badge ${curW.condition==='Rainy' ? 'badge-sky' : (curW.condition==='Sunny' ? 'badge-green' : 'badge-amber')}" style="font-size:0.85rem">
+              ● ${esc(curW.condition || 'Sunny')}
+            </span>
+          </div>
         </div>
 
         <!-- Current Observation Panel -->
@@ -3347,6 +3540,112 @@ async function loadFarmerPortal() {
     } else {
       histRows = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:18px">No past irrigation cycles recorded yet.</td></tr>';
     }
+
+    // Multi-Plot Crop Management Section
+    const farmerPlots = (f.plots && Array.isArray(f.plots) && f.plots.length > 0) ? f.plots : [{
+      id: 'PLOT-' + f.id + '-1',
+      name: 'Main ' + f.crop + ' Parcel',
+      crop: f.crop,
+      area_acres: f.area_acres,
+      sowing_date: f.planting_date,
+      crop_age_days: f.crop_age_days || 30,
+      soil_type: 'Clay Loam'
+    }];
+
+    const plotCardsHtml = farmerPlots.map(p => {
+      const age = p.crop_age_days || 0;
+      const dur = p.duration_days || 120;
+      const progressPct = Math.min(100, Math.max(2, Math.round((age / dur) * 100)));
+      const stage = p.stage || 'Vegetative Stage';
+      const dailyWater = p.daily_water_litres || Math.round((p.area_acres * 4046.85 * 5.0) / 0.85);
+      const daysLeft = Math.max(0, dur - age);
+
+      return `
+        <div class="plot-card" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:14px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+            <div style="display:flex;align-items:center;gap:12px">
+              <span style="font-size:1.9rem">🌾</span>
+              <div>
+                <div style="font-weight:800;font-size:1.08rem;color:var(--text)">${esc(p.name || 'Field Parcel')}</div>
+                <div style="font-size:0.75rem;color:var(--text-muted);display:flex;align-items:center;gap:8px;margin-top:2px">
+                  <span>Plot ID: <code>${esc(p.id)}</code></span>
+                  <span>•</span>
+                  <span>Soil: <strong>${esc(p.soil_type || 'Clay Loam')}</strong></span>
+                  <span>•</span>
+                  <span>Sown: <strong>${p.sowing_date || 'N/A'}</strong></span>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span class="badge badge-gold" style="font-size:0.8rem">🌱 ${age} Days Old</span>
+              <span class="badge badge-green" style="font-size:0.8rem">🌾 ${esc(p.crop)}</span>
+            </div>
+          </div>
+
+          <!-- Growth Timeline Bar -->
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:0.78rem;margin-bottom:5px">
+              <span>Growth Stage: <strong>${esc(stage)}</strong> (${progressPct}%)</span>
+              <span>Harvest: <strong>~${daysLeft} days remaining</strong> (Total: ${dur}d)</span>
+            </div>
+            <div style="background:var(--card-inner, #e2e8f0);border-radius:50px;height:10px;overflow:hidden">
+              <div style="width:${progressPct}%;background:linear-gradient(90deg, #10b981 0%, #f59e0b 80%, #fbbf24 100%);height:100%;border-radius:50px;transition:width .4s ease"></div>
+            </div>
+          </div>
+
+          <!-- Quick Metrics Strip -->
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:10px;font-size:0.8rem;background:var(--card-inner, rgba(0,0,0,0.03));padding:10px 14px;border-radius:var(--radius-sm)">
+            <div>
+              <div style="color:var(--text-muted);font-size:0.72rem">PLOT ACREAGE</div>
+              <div style="font-weight:800;color:var(--text)">${Number(p.area_acres).toFixed(2)} acres</div>
+            </div>
+            <div>
+              <div style="color:var(--text-muted);font-size:0.72rem">SOWING DATE</div>
+              <div style="font-weight:800;color:var(--text)">${p.sowing_date || 'Oct 2026'}</div>
+            </div>
+            <div>
+              <div style="color:var(--text-muted);font-size:0.72rem">DAILY WATER DEMAND</div>
+              <div style="font-weight:800;color:#0284c7">💧 ~${Number(dailyWater).toLocaleString()} L/day</div>
+            </div>
+            <div>
+              <div style="color:var(--text-muted);font-size:0.72rem">CROP COEFFICIENT</div>
+              <div style="font-weight:800;color:var(--text)">Kc = ${p.crop_coefficient || 1.0}</div>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:2px">
+            <div style="font-size:0.75rem;color:var(--text-muted)">
+              ${p.notes ? '📝 Note: ' + esc(p.notes) : ''}
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <button class="btn btn-secondary btn-sm" onclick="openEditPlotModal('${esc(p.id)}')">✏️ Edit Plot</button>
+              ${farmerPlots.length > 1 ? `<button class="btn btn-secondary btn-sm" onclick="deletePlot('${esc(p.id)}')" style="color:#ef4444;border-color:rgba(239,68,68,0.4)">🗑️ Remove</button>` : ''}
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    const plotsSectionHtml = `
+      <div class="card" style="margin-bottom:24px">
+        <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+          <div>
+            <div class="card-title" style="display:flex;align-items:center;gap:8px">
+              <span>🌾 My Cultivated Plots & Multi-Crop Parcels</span>
+              <span class="badge badge-gold">${farmerPlots.length} Active Plot${farmerPlots.length > 1 ? 's' : ''}</span>
+            </div>
+            <div class="card-subtitle">Register separate crops, sowing dates, and land sections across your farm</div>
+          </div>
+          <button class="btn btn-gold" onclick="openRegisterPlotModal()">
+            ➕ Register New Plot / Crop
+          </button>
+        </div>
+        <div class="card-body" style="padding-top:14px">
+          ${plotCardsHtml}
+        </div>
+      </div>
+    `;
 
     // Farmer-Curated Plot Water Pipeline & Field Valve Status
     const plotWaterStatusHtml = `
@@ -3474,7 +3773,17 @@ async function loadFarmerPortal() {
           <div class="farmer-hero-icon">🧑‍🌾</div>
           <div>
             <h2>Welcome, ${esc(f.name)}</h2>
-            <p>Farmer ID: <strong>${esc(f.id)}</strong> &nbsp;|&nbsp; Field Area: <strong>${f.area_acres} acres</strong> &nbsp;|&nbsp; Crop: <strong>${esc(f.crop)}</strong> &nbsp;|&nbsp; Status: <span class="badge badge-green">${f.status}</span></p>
+            <p style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:4px">
+  <span>Farmer ID: <strong>${esc(f.id)}</strong></span>
+  <span>•</span>
+  <span>Total Land: <strong>${f.area_acres} acres</strong></span>
+  <span>•</span>
+  <span>Crops: <strong>${esc(f.crop)}</strong></span>
+  <span>•</span>
+  <span class="badge badge-gold" style="font-weight:700">🌾 ${(f.plots || []).length} Cultivated Plot${(f.plots || []).length > 1 ? 's' : ''}</span>
+  <span>•</span>
+  <span class="badge badge-green">${f.status}</span>
+</p>
           </div>
         </div>
         <div>
@@ -3485,6 +3794,7 @@ async function loadFarmerPortal() {
       </div>
 
       ${solarCard}
+      ${plotsSectionHtml}
       ${plotWaterStatusHtml}
       ${soilHealthDialHtml}
       ${weatherCardHtml}
@@ -3659,6 +3969,229 @@ System       : PM-KUSUM Solar Smart Irrigation
 `;
   document.getElementById('slip-modal').classList.remove('hidden');
 }
+
+// ==================== FARMER MULTI-PLOT MANAGEMENT ====================
+let editingPlotId = null;
+
+function populatePlotCropDropdown(selectedCrop = '') {
+  const sel = document.getElementById('plot-form-crop');
+  if (!sel) return;
+  sel.innerHTML = crops.map(c => `
+    <option value="${esc(c.name)}" ${c.name === selectedCrop ? 'selected' : ''}>${esc(c.name)} (${c.duration_days} days)</option>
+  `).join('');
+}
+
+function openRegisterPlotModal() {
+  editingPlotId = null;
+  document.getElementById('plot-modal-title').textContent = '🌾 Register New Cultivated Plot';
+  document.getElementById('plot-modal-btn').textContent = 'Save New Plot';
+  document.getElementById('plot-modal-id').value = '';
+  document.getElementById('plot-modal-error').style.display = 'none';
+
+  document.getElementById('plot-form-name').value = '';
+  document.getElementById('plot-form-area').value = '0.50';
+  document.getElementById('plot-form-notes').value = '';
+  document.getElementById('plot-form-soil').value = 'Clay Loam';
+
+  const defaultDate = new Date();
+  document.getElementById('plot-form-date').value = defaultDate.toISOString().split('T')[0];
+
+  populatePlotCropDropdown('Rice (Paddy)');
+  updatePlotDateAgeCalc();
+  document.getElementById('plot-modal').classList.remove('hidden');
+}
+
+function openEditPlotModal(plotId) {
+  if (!currentFarmerProfile || !currentFarmerProfile.plots) return;
+  const plot = currentFarmerProfile.plots.find(p => p.id === plotId);
+  if (!plot) return;
+
+  editingPlotId = plotId;
+  document.getElementById('plot-modal-title').textContent = `✏️ Edit Plot: ${plot.name || plot.id}`;
+  document.getElementById('plot-modal-btn').textContent = 'Update Plot';
+  document.getElementById('plot-modal-id').value = plot.id;
+  document.getElementById('plot-modal-error').style.display = 'none';
+
+  document.getElementById('plot-form-name').value = plot.name || '';
+  document.getElementById('plot-form-area').value = plot.area_acres;
+  document.getElementById('plot-form-date').value = plot.sowing_date || new Date().toISOString().split('T')[0];
+  document.getElementById('plot-form-soil').value = plot.soil_type || 'Clay Loam';
+  document.getElementById('plot-form-notes').value = plot.notes || '';
+
+  populatePlotCropDropdown(plot.crop);
+  updatePlotDateAgeCalc();
+  document.getElementById('plot-modal').classList.remove('hidden');
+}
+
+function updatePlotDateAgeCalc() {
+  const dVal = document.getElementById('plot-form-date')?.value;
+  const cropName = document.getElementById('plot-form-crop')?.value;
+  const areaVal = parseFloat(document.getElementById('plot-form-area')?.value) || 0.1;
+
+  if (!dVal || !cropName) return;
+
+  const sown = new Date(dVal + 'T00:00:00');
+  const now = new Date();
+  const ageDays = Math.max(0, Math.floor((now - sown) / 86400000));
+
+  const cropObj = crops.find(c => c.name === cropName) || { duration_days: 120 };
+  const dur = cropObj.duration_days;
+  const daysLeft = Math.max(0, dur - ageDays);
+
+  const pct = ageDays / dur;
+  let stage = 'Initial Stage';
+  let stageColor = '#10b981';
+  if (pct > 0.8) {
+    stage = pct >= 1.0 ? 'Harvest Ready 🌾' : 'Ripening / Late Season';
+    stageColor = '#f59e0b';
+  } else if (pct > 0.2) {
+    stage = 'Vegetative / Mid-Season 🌿';
+    stageColor = '#059669';
+  }
+
+  let kc = 1.0;
+  if (pct <= 0.2) kc = 0.4;
+  else if (pct <= 0.8) kc = 1.15;
+  else kc = 0.7;
+
+  const areaM2 = areaVal * 4046.856;
+  const dailyLitres = Math.round((kc * 5.0 * areaM2) / 0.85);
+  const totalWaterSeason = Math.round(dailyLitres * Math.max(1, daysLeft));
+
+  const badgeEl = document.getElementById('plot-prev-age-badge');
+  if (badgeEl) badgeEl.textContent = `🌱 ${ageDays} Days Old`;
+
+  const stageEl = document.getElementById('plot-prev-stage');
+  if (stageEl) {
+    stageEl.textContent = stage;
+    stageEl.style.color = stageColor;
+  }
+
+  const harvestEl = document.getElementById('plot-prev-harvest');
+  if (harvestEl) harvestEl.textContent = `~${daysLeft} Days to Harvest (${dur}d cycle)`;
+
+  const waterEl = document.getElementById('plot-prev-water');
+  if (waterEl) waterEl.textContent = `~${dailyLitres.toLocaleString()} L/day (Kc = ${kc})`;
+
+  const totalEl = document.getElementById('plot-prev-total-water');
+  if (totalEl) totalEl.textContent = `~${totalWaterSeason.toLocaleString()} Litres`;
+}
+
+async function submitPlotForm() {
+  const errEl = document.getElementById('plot-modal-error');
+  errEl.style.display = 'none';
+
+  const name = document.getElementById('plot-form-name').value.trim();
+  const crop = document.getElementById('plot-form-crop').value;
+  const area_acres = document.getElementById('plot-form-area').value;
+  const sowing_date = document.getElementById('plot-form-date').value;
+  const soil_type = document.getElementById('plot-form-soil').value;
+  const notes = document.getElementById('plot-form-notes').value.trim();
+
+  if (!name || !crop || !area_acres || !sowing_date) {
+    errEl.textContent = 'Please fill all required fields (Plot Name, Crop, Area, Sowing Date).';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const body = { name, crop, area_acres, sowing_date, soil_type, notes };
+  let res;
+  if (editingPlotId) {
+    res = await api(`/api/farmer/plots/${editingPlotId}`, 'PUT', body);
+  } else {
+    res = await api('/api/farmer/plots', 'POST', body);
+  }
+
+  if (res.ok) {
+    closeModal('plot-modal');
+    toast(editingPlotId ? 'Plot updated successfully!' : 'New plot registered successfully!');
+    loadFarmerPortal();
+    loadNotifications();
+  } else {
+    errEl.textContent = res.error || 'Failed to save plot';
+    errEl.style.display = 'block';
+  }
+}
+
+async function deletePlot(plotId) {
+  if (!confirm('Are you sure you want to remove this cultivated plot from your field?')) return;
+  const res = await api(`/api/farmer/plots/${plotId}`, 'DELETE');
+  if (res.ok) {
+    toast('Plot removed successfully.');
+    loadFarmerPortal();
+  } else {
+    alert(res.error || 'Failed to remove plot');
+  }
+}
+
+// ==================== REAL-TIME GEOLOCATION WEATHER ====================
+let farmerLiveLocation = {
+  lat: 10.78,
+  lon: 79.13,
+  name: 'Cauvery Delta / Thanjavur'
+};
+
+const AG_REGIONS = {
+  thanjavur: { lat: 10.78, lon: 79.13, name: 'Cauvery Delta / Thanjavur (10.78° N, 79.13° E)' },
+  punjab:    { lat: 30.90, lon: 75.85, name: 'Punjab / Ludhiana (30.90° N, 75.85° E)' },
+  nashik:    { lat: 19.99, lon: 73.78, name: 'Maharashtra / Nashik (19.99° N, 73.78° E)' },
+  mandya:    { lat: 12.52, lon: 76.89, name: 'Karnataka / Mandya (12.52° N, 76.89° E)' },
+  karnal:    { lat: 29.68, lon: 76.99, name: 'Haryana / Karnal (29.68° N, 76.99° E)' }
+};
+
+async function changeFarmerWeatherRegion(val) {
+  if (AG_REGIONS[val]) {
+    farmerLiveLocation = AG_REGIONS[val];
+    await fetchLiveWeather();
+  }
+}
+
+async function detectLiveLocation(btn) {
+  if (!navigator.geolocation) {
+    alert('Geolocation is not supported by your browser.');
+    return;
+  }
+  const oldText = btn ? btn.innerHTML : '';
+  if (btn) btn.innerHTML = '⌛ Detecting GPS...';
+
+  navigator.geolocation.getCurrentPosition(
+    async (pos) => {
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
+      farmerLiveLocation = {
+        lat,
+        lon,
+        name: `Live GPS: ${lat.toFixed(2)}° N, ${lon.toFixed(2)}° E`
+      };
+      if (btn) btn.innerHTML = '✅ GPS Located!';
+      await fetchLiveWeather();
+      toast('Live farm coordinates acquired. Real-time forecast updated!');
+      setTimeout(() => { if (btn) btn.innerHTML = oldText; }, 2500);
+    },
+    (err) => {
+      console.warn('Geolocation warning:', err.message);
+      alert('Could not retrieve GPS coordinates (' + err.message + '). Showing regional weather.');
+      if (btn) btn.innerHTML = oldText;
+    },
+    { timeout: 8000, enableHighAccuracy: true }
+  );
+}
+
+async function fetchLiveWeather() {
+  try {
+    const url = `/api/weather/live?lat=${farmerLiveLocation.lat}&lon=${farmerLiveLocation.lon}&location_name=${encodeURIComponent(farmerLiveLocation.name)}`;
+    const res = await api(url);
+    if (res && res.current) {
+      if (currentFarmerProfile) {
+        currentFarmerProfile.weather_forecast = res;
+      }
+      loadFarmerPortal();
+    }
+  } catch (e) {
+    console.error('Failed to fetch real-time weather:', e);
+  }
+}
+
 
 // ==================== CSV EXPORT ====================
 function exportFarmersCSV() {

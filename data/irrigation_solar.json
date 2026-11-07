@@ -9,7 +9,7 @@
   "pump_power_draw_watts": 0,
   "battery_health_pct": 98,
   "pump_interlock_safe": true,
-  "last_updated": "2026-11-07T19:16:10.502Z",
+  "last_updated": "2026-11-07T19:40:08.873Z",
   "net_battery_flow_watts": 3600,
   "runtime_hours": 0.6
 }
