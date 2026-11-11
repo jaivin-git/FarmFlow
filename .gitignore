@@ -4,3 +4,4 @@ active_port.txt
 data/irrigation_audit.log
 .DS_Store
 Thumbs.db
+.env
